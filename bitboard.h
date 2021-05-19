@@ -10,6 +10,8 @@ enum Direction
 {
     UP,
     DOWN,
+    RIGHT,
+    LEFT,
     UP_RIGHT,
     UP_LEFT,
     DOWN_RIGHT,
@@ -130,6 +132,10 @@ inline Bitboard shift(const Bitboard bb)
         return bb >> 8ULL;
     case DOWN:
         return bb << 8ULL;
+    case RIGHT:
+        return (bb & NOT_H_FILE) << 1ULL;
+    case LEFT:
+        return (bb & NOT_A_FILE) >> 1ULL;
     case UP_RIGHT:
         return (bb & NOT_H_FILE) >> 7ULL;
     case UP_LEFT:
@@ -146,7 +152,7 @@ inline Bitboard shift(const Bitboard bb)
 
 inline int get_firstlsb_index(const Bitboard bb)
 {
-    assert(!bb);
+    assert(bb);
     return pop_count((bb & -bb) - 1);
 }
 
