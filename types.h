@@ -1,9 +1,12 @@
 #pragma once
 
-typedef int Color;
-
-enum eColor : int
+namespace JACEA
 {
-    WHITE,
-    BLACK
-};
+    typedef int Color;
+
+    enum eColor : int
+    {
+        WHITE,
+        BLACK
+    };
+}

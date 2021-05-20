@@ -4,22 +4,24 @@
 #include <cstring>
 #include <iostream>
 
-Bitboard pawn_attacks[2][64];
-Bitboard knight_attacks[64];
-Bitboard king_attacks[64];
+using namespace JACEA;
 
-int bishop_relevant_bits[64];
-int rook_relevant_bits[64];
+Bitboard JACEA::pawn_attacks[2][64];
+Bitboard JACEA::knight_attacks[64];
+Bitboard JACEA::king_attacks[64];
 
-Bitboard bishop_mask[64];
-Bitboard bishop_attacks[64][512];
-Bitboard rook_mask[64];
-Bitboard rook_attacks[64][4096];
+int JACEA::bishop_relevant_bits[64];
+int JACEA::rook_relevant_bits[64];
 
-u64 bishop_magics[64];
-u64 rook_magics[64];
+Bitboard JACEA::bishop_mask[64];
+Bitboard JACEA::bishop_attacks[64][512];
+Bitboard JACEA::rook_mask[64];
+Bitboard JACEA::rook_attacks[64][4096];
 
-void init_pawn_attacks()
+u64 JACEA::bishop_magics[64];
+u64 JACEA::rook_magics[64];
+
+void JACEA::init_pawn_attacks()
 {
     for (int square = 0; square < 64; square++)
     {
@@ -34,7 +36,7 @@ void init_pawn_attacks()
     }
 }
 
-void init_knight_attacks()
+void JACEA::init_knight_attacks()
 {
     for (int square = 0; square < 64; square++)
     {
@@ -52,7 +54,7 @@ void init_knight_attacks()
     }
 }
 
-void init_king_attacks()
+void JACEA::init_king_attacks()
 {
     for (int square = 0; square < 64; square++)
     {
@@ -70,7 +72,7 @@ void init_king_attacks()
     }
 }
 
-void init_bishop_mask()
+void JACEA::init_bishop_mask()
 {
     for (int square = 0; square < 64; square++)
     {
@@ -94,7 +96,7 @@ void init_bishop_mask()
     }
 }
 
-void init_rook_mask()
+void JACEA::init_rook_mask()
 {
     for (int square = 0; square < 64; square++)
     {
@@ -118,7 +120,7 @@ void init_rook_mask()
     }
 }
 
-void init_relevancy_bishop()
+void JACEA::init_relevancy_bishop()
 {
     for (int i = 0; i < 64; i++)
     {
@@ -126,7 +128,7 @@ void init_relevancy_bishop()
     }
 }
 
-void init_relevancy_rook()
+void JACEA::init_relevancy_rook()
 {
     for (int i = 0; i < 64; i++)
     {
@@ -134,7 +136,7 @@ void init_relevancy_rook()
     }
 }
 
-void init_bishop_magic_attack()
+void JACEA::init_bishop_magic_attack()
 {
     for (int square = 0; square < 64; square++)
     {
@@ -154,7 +156,7 @@ void init_bishop_magic_attack()
     }
 }
 
-void init_rook_magic_attack()
+void JACEA::init_rook_magic_attack()
 {
     for (int square = 0; square < 64; square++)
     {
@@ -174,7 +176,7 @@ void init_rook_magic_attack()
     }
 }
 
-void init_magic_numbers()
+void JACEA::init_magic_numbers()
 {
     for (int i = 0; i < 64; i++)
     {
@@ -183,7 +185,7 @@ void init_magic_numbers()
     }
 }
 
-u64 find_magic_number_bishop(const int square, const int relevant_bits)
+u64 JACEA::find_magic_number_bishop(const int square, const int relevant_bits)
 {
     Bitboard occs[4096];
     Bitboard attacks[4096];
@@ -229,7 +231,7 @@ u64 find_magic_number_bishop(const int square, const int relevant_bits)
     return 0ULL;
 }
 
-u64 find_magic_number_rook(const int square, const int relevant_bits)
+u64 JACEA::find_magic_number_rook(const int square, const int relevant_bits)
 {
     Bitboard occs[4096];
     Bitboard attacks[4096];
@@ -275,7 +277,7 @@ u64 find_magic_number_rook(const int square, const int relevant_bits)
     return 0ULL;
 }
 
-Bitboard generate_bishop_attacks(const int square, const Bitboard blocker)
+Bitboard JACEA::generate_bishop_attacks(const int square, const Bitboard blocker)
 {
     Bitboard attack_mask = 0ULL;
 
@@ -312,7 +314,7 @@ Bitboard generate_bishop_attacks(const int square, const Bitboard blocker)
     return attack_mask;
 }
 
-Bitboard generate_rook_attacks(const int square, const Bitboard blocker)
+Bitboard JACEA::generate_rook_attacks(const int square, const Bitboard blocker)
 {
     Bitboard attack_mask = 0ULL;
 
@@ -349,7 +351,7 @@ Bitboard generate_rook_attacks(const int square, const Bitboard blocker)
     return attack_mask;
 }
 
-Bitboard set_occupancy(const int index, const int bits_in_mask, Bitboard attack_mask)
+Bitboard JACEA::set_occupancy(const int index, const int bits_in_mask, Bitboard attack_mask)
 {
     Bitboard occupancy = 0ULL;
 

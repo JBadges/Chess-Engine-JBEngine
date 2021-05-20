@@ -1,7 +1,7 @@
 #include "bitboard.h"
 #include <iostream>
 
-void print_bitboard(const Bitboard bb)
+void JACEA::print_bitboard(const Bitboard bb)
 {
     printf("\n");
     for (int rank = 0; rank < 8; rank++)
