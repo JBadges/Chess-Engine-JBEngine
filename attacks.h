@@ -41,16 +41,16 @@ namespace JACEA
     void init_bishop_magic_attack();
     void init_rook_magic_attack();
 
-    u64 find_magic_number_bishop(const int square, const int relevant_bits);
-    u64 find_magic_number_rook(const int square, const int relevant_bits);
+    u64 find_magic_number_bishop(const Square square, const int relevant_bits);
+    u64 find_magic_number_rook(const Square square, const int relevant_bits);
 
     // Generate attack rays given a blocker
-    Bitboard generate_bishop_attacks(const int square, const Bitboard blocker);
-    Bitboard generate_rook_attacks(const int square, const Bitboard blocker);
+    Bitboard generate_bishop_attacks(const Square square, const Bitboard blocker);
+    Bitboard generate_rook_attacks(const Square square, const Bitboard blocker);
 
     Bitboard set_occupancy(const int index, const int bits_in_mask, Bitboard attack_mask);
 
-    static inline Bitboard get_bishop_attacks(const int square, u64 occupancy)
+    static inline Bitboard get_bishop_attacks(const Square square, u64 occupancy)
     {
         assert(0 <= square && square < 64);
         occupancy &= bishop_mask[square];
@@ -59,7 +59,7 @@ namespace JACEA
         return bishop_attacks[square][occupancy];
     }
 
-    static inline Bitboard get_rook_attacks(const int square, u64 occupancy)
+    static inline Bitboard get_rook_attacks(const Square square, u64 occupancy)
     {
         assert(0 <= square && square < 64);
         occupancy &= rook_mask[square];
@@ -68,7 +68,7 @@ namespace JACEA
         return rook_attacks[square][occupancy];
     }
 
-    static inline Bitboard get_queen_attacks(const int square, u64 occupancy)
+    static inline Bitboard get_queen_attacks(const Square square, u64 occupancy)
     {
         assert(0 <= square && square < 64);
         return get_bishop_attacks(square, occupancy) | get_rook_attacks(square, occupancy);

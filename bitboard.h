@@ -20,9 +20,12 @@ namespace JACEA
         DOWN_LEFT
     };
 
-    enum Square : int
+    typedef int Square;
+
+    enum eSquare : int
     {
-        a8,
+        no_sq = -1,
+        a8 = 0,
         b8,
         c8,
         d8,
@@ -101,13 +104,13 @@ namespace JACEA
     constexpr Bitboard BLACK_QUEEN_CASTLE = 14ULL;
     constexpr Bitboard BLACK_KING_CASTLE = 96ULL;
 
-    inline Bitboard get_bit(const Bitboard &bb, const int square)
+    inline Bitboard get_bit(const Bitboard &bb, const Square square)
     {
         assert(0 <= square && square < 64);
         return bb & (1ULL << square);
     }
 
-    inline Bitboard set_bit(Bitboard &bb, const int square)
+    inline Bitboard set_bit(Bitboard &bb, const Square square)
     {
         assert(0 <= square && square < 64);
         return bb |= (1ULL << square);
@@ -118,7 +121,7 @@ namespace JACEA
         return __builtin_popcountll(bb);
     }
 
-    inline Bitboard pop_bit(Bitboard &bb, const int square)
+    inline Bitboard pop_bit(Bitboard &bb, const Square square)
     {
         assert(0 <= square && square < 64);
         return bb &= ~(1ULL << square);

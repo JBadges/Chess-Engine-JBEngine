@@ -3,13 +3,17 @@
 #include <iostream>
 #include <bitset>
 #include "attacks.h"
-#include "types.h"
 #include "random.h"
+#include "position.h"
+#include "move.h"
 
 using namespace JACEA;
 
 int main(void)
 {
+	/**
+	 * One time initializations
+	 */
 	init_pawn_attacks();
 	init_knight_attacks();
 	init_king_attacks();
@@ -20,14 +24,10 @@ int main(void)
 	init_magic_numbers();
 	init_bishop_magic_attack();
 	init_rook_magic_attack();
+	init_zobrist_keys();
 
-	Bitboard b = 0ull;
-	set_bit(b, e5);
-	set_bit(b, a1);
-	set_bit(b, h5);
-	set_bit(b, a2);
-	set_bit(b, b6);
-	print_bitboard(b);
-	print_bitboard(get_queen_attacks(e3, b));
+	Position p;
+	p.init_from_fen("rn2kbnr/pbppqppp/1p6/5p2/3P4/1PN2P1N/PBP1P1PP/R2QKB1R w KQkq - 0 1");
+	p.print();
 	return 0;
 }
