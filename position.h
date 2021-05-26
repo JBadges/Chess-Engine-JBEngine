@@ -120,6 +120,9 @@ namespace JACEA
         inline Color get_side() const { return side; }
         inline Square get_enpassant_square() const { return en_passant; }
         inline int get_castling_perms() const { return castling; }
+        inline int get_material_white() const { return white_material; }
+        inline int get_material_black() const { return black_material; }
+        inline int get_ply() const { return ply; }
         inline Bitboard get_piece_board(const Piece piece) const { return piece_boards[piece]; }
         inline Bitboard get_occupancy_board(const Color color) const { return occupancy[color]; }
         inline bool is_square_attacked(const Color attacker, const Square square) const
@@ -163,6 +166,18 @@ namespace JACEA
             if (attacker == BLACK && get_queen_attacks(square, occupancy[BOTH]) & piece_boards[q])
                 return true;
 
+            return false;
+        }
+        inline bool three_fold_repetition()
+        {
+            int r = 0;
+            for (int i = 0; i < history_size; i++)
+            {
+                if (zobrist_key == history[i].key)
+                    r++;
+                if (r >= 3)
+                    return true;
+            }
             return false;
         }
     };

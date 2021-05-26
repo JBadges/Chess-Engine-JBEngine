@@ -1,14 +1,11 @@
 #include <cassert>
 
 #include <iostream>
-#include <bitset>
-#include "attacks.h"
 #include "random.h"
-#include "position.h"
-#include "move.h"
 #include "movegenerator.h"
 #include <chrono>
 #include <ctime>
+#include "search.h"
 
 using namespace JACEA;
 
@@ -71,18 +68,8 @@ int main(void)
 	init_rook_magic_attack();
 	init_zobrist_keys();
 
-	// Some computation here
-
 	Position p;
-	p.init_from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
-	auto start = std::chrono::system_clock::now();
-	u64 nodes = perft_verbose(p, 7);
-	auto end = std::chrono::system_clock::now();
-	std::chrono::duration<double> elapsed_seconds = end - start;
-	std::time_t end_time = std::chrono::system_clock::to_time_t(end);
-
-	std::cout << "nodes: \t" << nodes << "\n";
-	std::cout << "time: \t" << elapsed_seconds.count() << "\n";
-	std::cout << "\t" << std::fixed << nodes / elapsed_seconds.count() << "n/s\n";
+	p.init_from_fen("r2qkb1r/2p2ppp/p1n1b3/1p1Np3/3P4/1B3N2/PPP2PPP/R1BQK2R w KQkq - 0 1");
+	search(p, 7);
 	return 0;
 }

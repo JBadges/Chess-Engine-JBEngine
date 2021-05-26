@@ -70,16 +70,14 @@ void JACEA::Position::check() const
 
     bothbb = whitebb | blackbb;
 
-    if (!(pop_count(piece_boards[p]) <= 8))
-    {
-        bothbb = whitebb | blackbb;
-    }
     assert(pop_count(piece_boards[p]) <= 8);
     assert(pop_count(piece_boards[P]) <= 8);
     assert(whitebb == occupancy[WHITE]);
     assert(blackbb == occupancy[BLACK]);
     assert(bothbb == occupancy[BOTH]);
     assert(zobrist_key == generate_zobrist_key());
+    assert(pop_count(piece_boards[K]) == 1);
+    assert(pop_count(piece_boards[k]) == 1);
 #endif
 }
 
@@ -198,6 +196,10 @@ void JACEA::Position::init_from_fen(std::string fen)
     }
 
     zobrist_key = generate_zobrist_key();
+
+    // For search
+    ply = 0;
+
     check();
 }
 

@@ -1,8 +1,6 @@
 #pragma once
 #include "position.h"
 
-using namespace JACEA;
-
 namespace JACEA
 {
 
