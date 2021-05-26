@@ -117,12 +117,15 @@ namespace JACEA
 
         void print() const;
 
+        inline void reset_ply() { ply = 0; }
+
         inline Color get_side() const { return side; }
         inline Square get_enpassant_square() const { return en_passant; }
         inline int get_castling_perms() const { return castling; }
         inline int get_material_white() const { return white_material; }
         inline int get_material_black() const { return black_material; }
         inline int get_ply() const { return ply; }
+        inline int get_total_moves() const { return history_size; }
         inline Bitboard get_piece_board(const Piece piece) const { return piece_boards[piece]; }
         inline Bitboard get_occupancy_board(const Color color) const { return occupancy[color]; }
         inline bool is_square_attacked(const Color attacker, const Square square) const

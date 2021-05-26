@@ -4,7 +4,7 @@ project(JBEngine VERSION 0.1.0)
 include(CTest)
 enable_testing()
 
-add_executable(JBEngine main.cpp bitboard.cpp attacks.cpp position.cpp search.cpp)
+add_executable(JBEngine main.cpp bitboard.cpp attacks.cpp position.cpp search.cpp uci.cpp)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})

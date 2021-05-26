@@ -1,14 +1,30 @@
 #include "search.h"
 #include "eval.h"
 #include "movegenerator.h"
+#include "utility.h"
 #include <iostream>
 
 using namespace JACEA;
 
 int best_move = -1;
 
-static inline int quiesence(Position &pos, int alpha, int beta)
+static inline void update_stop(UCISettings &uci)
 {
+    uci.stop = get_time_ms() > uci.time_to_stop;
+}
+
+static inline int quiesence(Position &pos, int alpha, int beta, UCISettings &uci)
+{
+    uci.nodes++;
+
+    if (uci.nodes & 15000) // ~ each ms
+    {
+        update_stop(uci);
+    }
+    if (uci.stop)
+    {
+        return 0;
+    }
     if (pos.get_ply() >= max_game_ply)
         return evaluation(pos);
 
@@ -29,7 +45,7 @@ static inline int quiesence(Position &pos, int alpha, int beta)
         if (!pos.make_move(ml.moves[i].move, MoveType::CAPTURES))
             continue;
 
-        const int score = -quiesence(pos, -beta, -alpha);
+        const int score = -quiesence(pos, -beta, -alpha, uci);
 
         pos.take_move();
 
@@ -48,8 +64,20 @@ static inline int quiesence(Position &pos, int alpha, int beta)
     return alpha;
 }
 
-static inline int negamax(Position &pos, int alpha, int beta, int depth)
+static inline int negamax(Position &pos, int alpha, int beta, int depth, UCISettings &uci)
 {
+    uci.nodes++;
+
+    if (uci.nodes & 15000) // ~ each ms
+    {
+        update_stop(uci);
+    }
+
+    if (uci.stop)
+    {
+        return 0;
+    }
+
     // Draw
     if (pos.get_ply() != 0 && pos.three_fold_repetition())
     {
@@ -59,7 +87,7 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth)
     int score;
 
     if (depth == 0)
-        return quiesence(pos, alpha, beta);
+        return quiesence(pos, alpha, beta, uci);
 
     if (pos.get_ply() >= max_game_ply)
         return evaluation(pos);
@@ -81,7 +109,7 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth)
 
         legal_moves++;
 
-        score = -negamax(pos, -beta, -alpha, depth - 1);
+        score = -negamax(pos, -beta, -alpha, depth - 1, uci);
         pos.take_move();
 
         // PV move found
@@ -114,11 +142,33 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth)
     return alpha;
 }
 
-void JACEA::search(Position &pos, int depth)
+void JACEA::search(Position &pos, UCISettings &uci, int depth)
 {
+    int real_best = best_move;
     for (int current_depth = 1; current_depth <= depth; current_depth++)
     {
-        negamax(pos, -value_infinite, value_infinite, current_depth);
-        std::cout << "Best move at depth " << current_depth << ": " << square_to_coordinate[get_from_square(best_move)] << square_to_coordinate[get_to_square(best_move)] << std::endl;
+        int score = negamax(pos, -value_infinite, value_infinite, current_depth, uci);
+        if (!uci.stop)
+        {
+            real_best = best_move;
+        }
+        else
+        {
+            break;
+        }
+        if (score > -value_mate && score < -value_mate_lower)
+        {
+            printf("info score mate %d depth %d nodes %llu pv ", -(score + value_mate) / 2 - 1, current_depth, uci.nodes);
+        }
+        else if (score > value_mate_lower && score < value_mate)
+        {
+            printf("info score mate %d depth %d nodes %llu pv ", (value_mate - score) / 2 + 1, current_depth, uci.nodes);
+        }
+        else
+        {
+            printf("info score cp %d depth %d nodes %llu pv ", score, current_depth, uci.nodes);
+        }
+        std::cout << square_to_coordinate[get_from_square(real_best)] << square_to_coordinate[get_to_square(real_best)] << std::endl;
     }
+    std::cout << "bestmove " << square_to_coordinate[get_from_square(real_best)] << square_to_coordinate[get_to_square(real_best)] << std::endl;
 }

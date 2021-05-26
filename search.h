@@ -1,6 +1,7 @@
 #pragma once
 
 #include "position.h"
+#include "uci.h"
 
 namespace JACEA
 {
@@ -8,5 +9,5 @@ namespace JACEA
     const int value_mate = 40000;
     const int value_mate_lower = 39000;
 
-    void search(Position &pos, int depth);
+    void search(Position &pos, UCISettings &uci, int depth);
 }

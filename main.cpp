@@ -5,6 +5,7 @@
 #include "movegenerator.h"
 #include <chrono>
 #include <ctime>
+#include "eval.h"
 #include "search.h"
 
 using namespace JACEA;
@@ -68,8 +69,45 @@ int main(void)
 	init_rook_magic_attack();
 	init_zobrist_keys();
 
-	Position p;
-	p.init_from_fen("r2qkb1r/2p2ppp/p1n1b3/1p1Np3/3P4/1B3N2/PPP2PPP/R1BQK2R w KQkq - 0 1");
-	search(p, 7);
+	Position pos;
+	std::cout << "uciok" << std::endl;
+
+	while (true)
+	{
+		std::string line;
+		std::getline(std::cin, line);
+		if (line.substr(0, 3) == "uci")
+		{
+			std::cout << "id name JACEA 1.0" << std::endl;
+			std::cout << "id author Jackson (JBadges) Brajer" << std::endl;
+			std::cout << "uciok" << std::endl;
+		}
+		else if (line.substr(0, 7) == "isready")
+		{
+			std::cout << "readyok" << std::endl;
+		}
+		else if (line.substr(0, 8) == "position")
+		{
+			parse_position(pos, line);
+		}
+		else if (line.substr(0, 2) == "go")
+		{
+			parse_go(pos, line);
+		}
+		else if (line.substr(0, 4) == "quit")
+		{
+			break;
+		}
+		else if (line.substr(0, 4) == "ucinewgame")
+		{
+			parse_position(pos, "position startpos");
+		}
+		else if (line.substr(0, 1) == "p")
+		{
+			pos.print();
+			std::cout << "Turn (0=w,1=b): " << pos.get_side() << std::endl;
+			std::cout << "Evaluation (white): " << std::dec << evaluation(pos) << std::endl;
+		}
+	}
 	return 0;
 }
