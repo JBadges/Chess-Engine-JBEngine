@@ -8,6 +8,15 @@ using namespace JACEA;
 u64 JACEA::piece_position_key[13][64];
 u64 JACEA::side_key;
 u64 JACEA::castle_perm_key[16];
+int JACEA::square_to_castle_perm[64] = {
+    (15 & ~bq), 15, 15, 15, (15 & ~bq & ~bk), 15, 15, (15 & ~bk),
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    (15 & ~wq), 15, 15, 15, (15 & ~wq & ~wk), 15, 15, (15 & ~wk)};
 
 void JACEA::init_zobrist_keys()
 {
@@ -188,7 +197,231 @@ void JACEA::Position::init_from_fen(std::string fen)
     check();
 }
 
-bool JACEA::Position::make_move(Move move) { return false; }
+bool JACEA::Position::make_move(Move move, const MoveType mt)
+{
+    if (mt == MoveType::CAPTURES)
+    {
+        if (!is_capture(move))
+            return false;
+        return make_move(move, MoveType::ALL);
+    }
+
+    history[history_size].castling = castling;
+    history[history_size].en_passant = en_passant;
+    history[history_size].plies = ply;
+    history[history_size].rule50 = rule50;
+    history[history_size].move = move;
+    history[history_size].key = zobrist_key;
+
+    // Remove enpassant and castle from key in case of change
+    if (en_passant != no_sq)
+        zobrist_key ^= piece_position_key[12][en_passant];
+    zobrist_key ^= castle_perm_key[castling];
+
+    ply++;
+    rule50++;
+    en_passant = no_sq;
+
+    const int from_square = get_from_square(move);
+    const int to_square = get_to_square(move);
+    const int piece = mailbox[from_square];
+    const int promoted_piece = get_promoted_piece(move);
+    const int is_capture_move = is_capture(move);
+    const int is_doublepawnpush_move = is_doublepawnpush(move);
+    const int is_castle_move = is_castle(move);
+    const int is_enpassant_move = is_enpassant(move);
+
+    // Step 1: If its a capture move, store it and remove the captured piece
+    if (is_capture_move)
+    {
+        assert(mailbox[to_square] != None);
+        history[history_size].captured_piece = mailbox[to_square];
+        take_piece(to_square);
+    }
+
+    // Step 2: Remove enpassant capture
+    if (is_enpassant_move)
+    {
+        if (side == WHITE)
+        {
+            take_piece(to_square + 8);
+            history[history_size].captured_piece = p;
+        }
+        else
+        {
+            take_piece(to_square - 8);
+            history[history_size].captured_piece = P;
+        }
+    }
+    // Step 3: Move piece to target square
+    move_piece(from_square, to_square);
+
+    // Step 4: If move was a castle move rook to correct position
+    if (is_castle_move)
+    {
+        switch (to_square)
+        {
+        case g1:
+            move_piece(h1, f1);
+            break;
+        case c1:
+            move_piece(a1, d1);
+            break;
+        case g8:
+            move_piece(h8, f8);
+            break;
+        case c8:
+            move_piece(a8, d8);
+            break;
+        }
+    }
+
+    // Step 5: If its a promotion remove pawn from 8th/1st rank and add promoted piece
+    if (piece == P && a8 <= to_square && to_square <= h8)
+    {
+        take_piece(to_square);
+        add_piece(promoted_piece, to_square);
+    }
+    else if (piece == p && a1 <= to_square && to_square <= h1)
+    {
+        take_piece(to_square);
+        add_piece(promoted_piece, to_square);
+    }
+
+    // Step 6: Update enpassant square
+    if (is_doublepawnpush_move)
+    {
+        if (side == WHITE)
+        {
+            en_passant = to_square + 8;
+        }
+        else
+        {
+            en_passant = to_square - 8;
+        }
+        zobrist_key ^= piece_position_key[12][en_passant];
+    }
+
+    // Step 7: Castle perms and side swap
+    castling &= square_to_castle_perm[from_square];
+    castling &= square_to_castle_perm[to_square];
+    side ^= 1;
+    zobrist_key ^= side_key;
+    zobrist_key ^= castle_perm_key[castling];
+
+    history_size++;
+
+    if (side == WHITE)
+    {
+        if (is_square_attacked(side, get_firstlsb_index(piece_boards[k])))
+        {
+            take_move();
+            check();
+            return false;
+        }
+    }
+    else
+    {
+        if (is_square_attacked(side, get_firstlsb_index(piece_boards[K])))
+        {
+            take_move();
+            check();
+            return false;
+        }
+    }
+    check();
+    return true;
+}
+
+void JACEA::Position::take_move()
+{
+    assert(history_size);
+    history_size--;
+
+    if (en_passant != no_sq)
+        zobrist_key ^= piece_position_key[12][en_passant];
+    zobrist_key ^= castle_perm_key[castling];
+
+    castling = history[history_size].castling;
+    en_passant = history[history_size].en_passant;
+    ply = history[history_size].plies;
+    rule50 = history[history_size].rule50;
+
+    if (en_passant != no_sq)
+        zobrist_key ^= piece_position_key[12][en_passant];
+    zobrist_key ^= castle_perm_key[castling];
+
+    const int captured_piece = history[history_size].captured_piece;
+
+    const int move = history[history_size].move;
+    const int from_square = get_from_square(move);
+    const int to_square = get_to_square(move);
+    const int piece = mailbox[from_square];
+    const int promoted_piece = get_promoted_piece(move);
+    const bool is_capture_move = is_capture(move);
+    const bool is_doublepawnpush_move = is_doublepawnpush(move);
+    const bool is_castle_move = is_castle(move);
+    const bool is_enpassant_move = is_enpassant(move);
+
+    // Step 1: If the move was a promotion, turn the promoted piece back into a pawn
+    if (piece == P && a8 <= to_square && to_square <= h8)
+    {
+        take_piece(to_square);
+        add_piece(P, to_square);
+    }
+    else if (piece == p && a1 <= to_square && to_square <= h1)
+    {
+        take_piece(to_square);
+        add_piece(p, to_square);
+    }
+
+    // Step 2: Move piece(s) back to original square
+    move_piece(to_square, from_square);
+
+    // If the move was a castle, depending on where the king moved to will determine where to move the rook
+    if (is_castle_move)
+    {
+        switch (to_square)
+        {
+        case g1:
+            move_piece(f1, h1);
+            break;
+        case c1:
+            move_piece(d1, a1);
+            break;
+        case g8:
+            move_piece(f8, h8);
+            break;
+        case c8:
+            move_piece(d8, a8);
+            break;
+        default:
+            assert(false);
+        }
+    }
+
+    // Step 3: Add the captured piece back to its square
+    if (is_enpassant_move)
+    {
+        if (side == WHITE)
+        {
+            add_piece(P, to_square - 8);
+        }
+        else
+        {
+            add_piece(p, to_square + 8);
+        }
+    }
+    else if (is_capture_move)
+    {
+        add_piece(captured_piece, to_square);
+    }
+
+    // Step 4: Change back side
+    side ^= 1;
+    zobrist_key ^= side_key;
+    check();
+}
 
 void JACEA::Position::print() const
 {

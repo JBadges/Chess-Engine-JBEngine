@@ -1,5 +1,7 @@
+#include "attacks.h"
 #include "bitboard.h"
 #include "types.h"
+#include "move.h"
 #include <string>
 
 namespace JACEA
@@ -8,8 +10,22 @@ namespace JACEA
     extern u64 piece_position_key[13][64];
     extern u64 side_key;
     extern u64 castle_perm_key[16];
+    extern int square_to_castle_perm[64];
 
     void init_zobrist_keys();
+
+    constexpr int max_game_ply = 2 << 8;
+
+    struct PositionHistory
+    {
+        u64 key;
+        int castling;
+        int rule50;
+        int plies;
+        Square en_passant;
+        Piece captured_piece;
+        Move move;
+    };
 
     class Position
     {
@@ -26,6 +42,9 @@ namespace JACEA
         int castling;              // uses first 4 bits of data to hold castling perms of both sides
         int ply;                   // ply is increased after each move made
         int rule50;                // Used for calling draws after no pawn move or capture in 50 moves
+
+        PositionHistory history[max_game_ply]; // Stores the previous move history to undo
+        int history_size = 0;
 
         /**
          *  Eval
@@ -49,8 +68,6 @@ namespace JACEA
                 black_material += piece_to_value[piece];
 
             zobrist_key ^= piece_position_key[piece][square];
-
-            check();
         }
 
         inline void take_piece(const Square square)
@@ -69,8 +86,6 @@ namespace JACEA
                 black_material -= piece_to_value[piece];
 
             zobrist_key ^= piece_position_key[piece][square];
-
-            check();
         }
 
         // To square must be empty. (Does not handle captures)
@@ -93,8 +108,50 @@ namespace JACEA
 
             zobrist_key ^= piece_position_key[piece][from_square];
             zobrist_key ^= piece_position_key[piece][to_square];
+        }
 
-            check();
+        inline bool is_square_attacked(const Color attacker, const Square square)
+        {
+            assert(attacker == WHITE || attacker == BLACK);
+            assert(0 <= square && square < 64);
+
+            // Pawns
+            if (attacker == WHITE && pawn_attacks[BLACK][square] & piece_boards[P])
+                return true;
+            if (attacker == BLACK && pawn_attacks[WHITE][square] & piece_boards[p])
+                return true;
+
+            // Knights
+            if (attacker == WHITE && knight_attacks[square] & piece_boards[N])
+                return true;
+            if (attacker == BLACK && knight_attacks[square] & piece_boards[n])
+                return true;
+
+            // King
+            if (attacker == WHITE && king_attacks[square] & piece_boards[K])
+                return true;
+            if (attacker == BLACK && king_attacks[square] & piece_boards[k])
+                return true;
+
+            // Bishops
+            if (attacker == WHITE && get_bishop_attacks(square, occupancy[BOTH]) & piece_boards[B])
+                return true;
+            if (attacker == BLACK && get_bishop_attacks(square, occupancy[BOTH]) & piece_boards[b])
+                return true;
+
+            // Rooks
+            if (attacker == WHITE && get_rook_attacks(square, occupancy[BOTH]) & piece_boards[R])
+                return true;
+            if (attacker == BLACK && get_rook_attacks(square, occupancy[BOTH]) & piece_boards[r])
+                return true;
+
+            // Queens
+            if (attacker == WHITE && get_queen_attacks(square, occupancy[BOTH]) & piece_boards[Q])
+                return true;
+            if (attacker == BLACK && get_queen_attacks(square, occupancy[BOTH]) & piece_boards[q])
+                return true;
+
+            return false;
         }
 
         u64 generate_zobrist_key() const;
@@ -105,7 +162,8 @@ namespace JACEA
         void reset();
         void init_from_fen(std::string fen);
 
-        bool make_move(Move move);
+        bool make_move(Move move, const MoveType mt);
+        void take_move();
 
         void print() const;
     };

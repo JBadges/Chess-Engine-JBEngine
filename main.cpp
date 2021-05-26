@@ -27,7 +27,11 @@ int main(void)
 	init_zobrist_keys();
 
 	Position p;
-	p.init_from_fen("rn2kbnr/pbppqppp/1p6/5p2/3P4/1PN2P1N/PBP1P1PP/R2QKB1R w KQkq - 0 1");
+	p.init_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+	p.print();
+	p.make_move(create_move(d2, d4, 0, 0), MoveType::ALL);
+	p.print();
+	p.make_move(create_move(d7, d5, 0, 0), MoveType::ALL);
 	p.print();
 	return 0;
 }

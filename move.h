@@ -5,6 +5,12 @@
 
 namespace JACEA
 {
+    enum class MoveType
+    {
+        ALL,
+        CAPTURES
+    };
+
     constexpr int flag_capture = (1ULL << 16);
     constexpr int flag_enpassant = (1ULL << 17);
     constexpr int flag_double_pawn_push = (1ULL << 18);
