@@ -70,6 +70,10 @@ void JACEA::Position::check() const
 
     bothbb = whitebb | blackbb;
 
+    if (!(pop_count(piece_boards[p]) <= 8))
+    {
+        bothbb = whitebb | blackbb;
+    }
     assert(pop_count(piece_boards[p]) <= 8);
     assert(pop_count(piece_boards[P]) <= 8);
     assert(whitebb == occupancy[WHITE]);
@@ -118,7 +122,7 @@ void JACEA::Position::reset()
 
     side = WHITE;
     en_passant = no_sq;
-    castling = wk | wq | bk | bq;
+    castling = 0;
     ply = 0;
     rule50 = 0;
 
@@ -150,7 +154,7 @@ void JACEA::Position::init_from_fen(std::string fen)
                    *c == 'p' || *c == 'n' || *c == 'b' || *c == 'r' || *c == 'q' || *c == 'k');
 
             const int piece = char_to_piece(*c);
-            add_piece(square, piece);
+            add_piece(piece, square);
             square++;
         }
     }
@@ -231,10 +235,16 @@ bool JACEA::Position::make_move(Move move, const MoveType mt)
     const int is_castle_move = is_castle(move);
     const int is_enpassant_move = is_enpassant(move);
 
+    if (mailbox[from_square] == P || mailbox[from_square] == p)
+    {
+        rule50 = 0;
+    }
+
     // Step 1: If its a capture move, store it and remove the captured piece
     if (is_capture_move)
     {
         assert(mailbox[to_square] != None);
+        rule50 = 0;
         history[history_size].captured_piece = mailbox[to_square];
         take_piece(to_square);
     }
@@ -356,7 +366,6 @@ void JACEA::Position::take_move()
     const int move = history[history_size].move;
     const int from_square = get_from_square(move);
     const int to_square = get_to_square(move);
-    const int piece = mailbox[from_square];
     const int promoted_piece = get_promoted_piece(move);
     const bool is_capture_move = is_capture(move);
     const bool is_doublepawnpush_move = is_doublepawnpush(move);
@@ -364,12 +373,12 @@ void JACEA::Position::take_move()
     const bool is_enpassant_move = is_enpassant(move);
 
     // Step 1: If the move was a promotion, turn the promoted piece back into a pawn
-    if (piece == P && a8 <= to_square && to_square <= h8)
+    if (promoted_piece != 0 && a8 <= to_square && to_square <= h8)
     {
         take_piece(to_square);
         add_piece(P, to_square);
     }
-    else if (piece == p && a1 <= to_square && to_square <= h1)
+    else if (promoted_piece != 0 && a1 <= to_square && to_square <= h1)
     {
         take_piece(to_square);
         add_piece(p, to_square);

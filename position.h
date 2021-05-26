@@ -1,3 +1,5 @@
+#pragma once
+
 #include "attacks.h"
 #include "bitboard.h"
 #include "types.h"
@@ -52,8 +54,12 @@ namespace JACEA
         int white_material; // white material score
         int black_material; // black material score
 
-        inline void add_piece(const Square square, const Piece piece)
+        inline void add_piece(const Piece piece, const Square square)
         {
+            if (mailbox[square] != None)
+            {
+                white_material = white_material;
+            }
             assert(mailbox[square] == None);
             assert(piece != None);
 
@@ -94,23 +100,29 @@ namespace JACEA
             assert(mailbox[from_square] != None);
             assert(mailbox[to_square] == None);
             const Piece piece = mailbox[from_square];
-
-            mailbox[to_square] = piece;
-            mailbox[from_square] = None;
-
-            Bitboard from_bb = 1ULL << from_square;
-            Bitboard to_bb = 1ULL << to_square;
-            Bitboard from_to_bb = from_bb | to_bb;
-
-            piece_boards[piece] ^= from_to_bb;
-            occupancy[color_from_piece[piece]] ^= from_to_bb;
-            occupancy[BOTH] ^= from_to_bb;
-
-            zobrist_key ^= piece_position_key[piece][from_square];
-            zobrist_key ^= piece_position_key[piece][to_square];
+            take_piece(from_square);
+            add_piece(piece, to_square);
         }
 
-        inline bool is_square_attacked(const Color attacker, const Square square)
+        u64 generate_zobrist_key() const;
+        void check() const;
+
+    public:
+        Position();
+        void reset();
+        void init_from_fen(std::string fen);
+
+        bool make_move(Move move, const MoveType mt);
+        void take_move();
+
+        void print() const;
+
+        inline Color get_side() const { return side; }
+        inline Square get_enpassant_square() const { return en_passant; }
+        inline int get_castling_perms() const { return castling; }
+        inline Bitboard get_piece_board(const Piece piece) const { return piece_boards[piece]; }
+        inline Bitboard get_occupancy_board(const Color color) const { return occupancy[color]; }
+        inline bool is_square_attacked(const Color attacker, const Square square) const
         {
             assert(attacker == WHITE || attacker == BLACK);
             assert(0 <= square && square < 64);
@@ -153,18 +165,5 @@ namespace JACEA
 
             return false;
         }
-
-        u64 generate_zobrist_key() const;
-        void check() const;
-
-    public:
-        Position();
-        void reset();
-        void init_from_fen(std::string fen);
-
-        bool make_move(Move move, const MoveType mt);
-        void take_move();
-
-        void print() const;
     };
 }
