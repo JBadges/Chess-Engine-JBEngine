@@ -18,6 +18,7 @@ namespace JACEA
 
     static inline void add_move(const Position &pos, MoveList &ml, const Move move)
     {
+        pos.get_ply();
         ml.moves[ml.size++] = {move, 0};
     }
 

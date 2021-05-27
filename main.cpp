@@ -68,6 +68,7 @@ int main(void)
 	init_bishop_magic_attack();
 	init_rook_magic_attack();
 	init_zobrist_keys();
+	init_pst();
 
 	Position pos;
 	std::cout << "uciok" << std::endl;
@@ -106,7 +107,7 @@ int main(void)
 		{
 			pos.print();
 			std::cout << "Turn (0=w,1=b): " << pos.get_side() << std::endl;
-			std::cout << "Evaluation (white): " << std::dec << evaluation(pos) << std::endl;
+			std::cout << "Evaluation: " << std::dec << evaluation(pos) << std::endl;
 		}
 	}
 	return 0;

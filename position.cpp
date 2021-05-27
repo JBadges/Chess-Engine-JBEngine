@@ -51,7 +51,10 @@ void JACEA::Position::check() const
         else
             black_val += piece_to_value[mailbox[sq]];
     }
-
+    if (white_val != white_material)
+    {
+        std::cout << "failed white check" << std::endl;
+    }
     assert(white_val == white_material);
     assert(black_val == black_material);
 
@@ -123,6 +126,8 @@ void JACEA::Position::reset()
     castling = 0;
     ply = 0;
     rule50 = 0;
+
+    history_size = 0;
 
     white_material = 0;
     black_material = 0;
@@ -370,7 +375,6 @@ void JACEA::Position::take_move()
     const int to_square = get_to_square(move);
     const int promoted_piece = get_promoted_piece(move);
     const bool is_capture_move = is_capture(move);
-    const bool is_doublepawnpush_move = is_doublepawnpush(move);
     const bool is_castle_move = is_castle(move);
     const bool is_enpassant_move = is_enpassant(move);
 

@@ -47,8 +47,9 @@ void JACEA::parse_go(Position &pos, std::string str)
 {
     auto split = split_string(str, " ");
     UCISettings uci;
+    uci.stop = false;
     uci.time_to_stop = -1;
-    for (int i = 0; i < split.size(); i++)
+    for (long long unsigned int i = 0; i < split.size(); i++)
     {
         if (split[i] == "wtime" && pos.get_side() == WHITE)
         {
@@ -99,7 +100,6 @@ void JACEA::parse_go(Position &pos, std::string str)
     {
         uci.time_to_stop = std::min(10.0, std::max(uci.time_to_stop / 20.0, 0.10));
     }
-
     std::cout << "Searching for: " << uci.time_to_stop << "s" << std::endl;
     uci.time_to_stop *= 1000;
     uci.time_to_stop += get_time_ms();

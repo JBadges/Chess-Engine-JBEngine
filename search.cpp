@@ -145,8 +145,10 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth, UCISett
 void JACEA::search(Position &pos, UCISettings &uci, int depth)
 {
     int real_best = best_move;
+
     for (int current_depth = 1; current_depth <= depth; current_depth++)
     {
+        std::cout << "Starting search for depth: " << current_depth << std::endl;
         int score = negamax(pos, -value_infinite, value_infinite, current_depth, uci);
         if (!uci.stop)
         {
@@ -154,6 +156,7 @@ void JACEA::search(Position &pos, UCISettings &uci, int depth)
         }
         else
         {
+            std::cout << "Timed out of search: " << current_depth << std::endl;
             break;
         }
         if (score > -value_mate && score < -value_mate_lower)
@@ -168,7 +171,13 @@ void JACEA::search(Position &pos, UCISettings &uci, int depth)
         {
             printf("info score cp %d depth %d nodes %llu pv ", score, current_depth, uci.nodes);
         }
-        std::cout << square_to_coordinate[get_from_square(real_best)] << square_to_coordinate[get_to_square(real_best)] << std::endl;
+        std::cout << square_to_coordinate[get_from_square(real_best)] << square_to_coordinate[get_to_square(real_best)];
+        if (get_promoted_piece(real_best) != 0)
+            std::cout << piece_to_string[get_promoted_piece(real_best)];
+        std::cout << std::endl;
     }
-    std::cout << "bestmove " << square_to_coordinate[get_from_square(real_best)] << square_to_coordinate[get_to_square(real_best)] << std::endl;
+    std::cout << "bestmove " << square_to_coordinate[get_from_square(real_best)] << square_to_coordinate[get_to_square(real_best)];
+    if (get_promoted_piece(real_best) != 0)
+        std::cout << piece_to_string[get_promoted_piece(real_best)];
+    std::cout << std::endl;
 }
