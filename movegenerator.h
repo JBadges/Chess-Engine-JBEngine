@@ -4,6 +4,10 @@
 namespace JACEA
 {
 
+    extern int mvv_lva[12][12];
+
+    void init_mvv_lva();
+
     struct ScoredMove
     {
         Move move;
@@ -16,10 +20,26 @@ namespace JACEA
         int size = 0;
     };
 
+    static inline int score_move(const Position &pos, const Move move)
+    {
+
+        if (is_capture(move))
+        {
+            int piece = pos.get_piece_on_square(get_from_square(move));
+            int captured_piece = pos.get_piece_on_square(get_to_square(move));
+            return mvv_lva[captured_piece][piece] + 10000;
+        }
+        else if (is_enpassant(move))
+        {
+            return mvv_lva[P][p] + 10000;
+        }
+
+        return 0;
+    }
+
     static inline void add_move(const Position &pos, MoveList &ml, const Move move)
     {
-        pos.get_ply();
-        ml.moves[ml.size++] = {move, 0};
+        ml.moves[ml.size++] = {move, score_move(pos, move)};
     }
 
     static inline void generate_moves(const Position &pos, MoveList &ml)

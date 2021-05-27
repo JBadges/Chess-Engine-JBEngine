@@ -3,10 +3,16 @@
 #include "movegenerator.h"
 #include "utility.h"
 #include <iostream>
+#include <algorithm>
 
 using namespace JACEA;
 
 int best_move = -1;
+
+static inline bool compareDescendingMoves(const ScoredMove &a, const ScoredMove &b)
+{
+    return a.score > b.score;
+}
 
 static inline void update_stop(UCISettings &uci)
 {
@@ -40,6 +46,7 @@ static inline int quiesence(Position &pos, int alpha, int beta, UCISettings &uci
 
     MoveList ml;
     generate_moves(pos, ml);
+    std::sort(ml.moves, ml.moves + ml.size, compareDescendingMoves);
     for (int i = 0; i < ml.size; i++)
     {
         if (!pos.make_move(ml.moves[i].move, MoveType::CAPTURES))
@@ -101,7 +108,7 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth, UCISett
 
     MoveList ml;
     generate_moves(pos, ml);
-
+    std::sort(ml.moves, ml.moves + ml.size, compareDescendingMoves);
     for (int i = 0; i < ml.size; i++)
     {
         if (!pos.make_move(ml.moves[i].move, MoveType::ALL))

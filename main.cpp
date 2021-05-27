@@ -69,6 +69,7 @@ int main(void)
 	init_rook_magic_attack();
 	init_zobrist_keys();
 	init_pst();
+	init_mvv_lva();
 
 	Position pos;
 	std::cout << "uciok" << std::endl;
