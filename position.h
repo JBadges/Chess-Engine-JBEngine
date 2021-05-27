@@ -194,7 +194,7 @@ namespace JACEA
             {
                 if (zobrist_key == history[i].key)
                     r++;
-                if (r >= 3)
+                if (r >= 2)
                     return true;
             }
             return false;

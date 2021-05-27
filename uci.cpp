@@ -27,13 +27,13 @@ int JACEA::parse_move(Position &pos, const char *move_cstr)
             if (*move_cstr != '\0')
             {
                 auto promo_piece = get_promoted_piece(move);
-                if ((promo_piece == Q || promo_piece == q) && *move_cstr == 'q')
+                if ((promo_piece == Q || promo_piece == q) && (*move_cstr == 'q' || *move_cstr == 'Q'))
                     return move;
-                if ((promo_piece == R || promo_piece == r) && *move_cstr == 'r')
+                if ((promo_piece == R || promo_piece == r) && (*move_cstr == 'r' || *move_cstr == 'R'))
                     return move;
-                if ((promo_piece == B || promo_piece == b) && *move_cstr == 'b')
+                if ((promo_piece == B || promo_piece == b) && (*move_cstr == 'b' || *move_cstr == 'B'))
                     return move;
-                if ((promo_piece == N || promo_piece == n) && *move_cstr == 'n')
+                if ((promo_piece == N || promo_piece == n) && (*move_cstr == 'n' || *move_cstr == 'N'))
                     return move;
             }
             else
@@ -53,11 +53,11 @@ void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, std::string str)
     {
         if (split[i] == "wtime" && pos.get_side() == WHITE)
         {
-            uci.time_to_stop = std::stoi(split[i + 1]) / 1000;
+            uci.time_to_stop = std::stoi(split[i + 1]) / 1000.0;
         }
         else if (split[i] == "btime" && pos.get_side() == BLACK)
         {
-            uci.time_to_stop = std::stoi(split[i + 1]) / 1000;
+            uci.time_to_stop = std::stoi(split[i + 1]) / 1000.0;
         }
         else if (split[i] == "winc" && pos.get_side() == WHITE)
         {

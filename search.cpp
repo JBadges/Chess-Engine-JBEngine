@@ -69,6 +69,10 @@ static inline int quiesence(Position &pos, int alpha, int beta, UCISettings &uci
     return alpha;
 }
 
+// For Null move pruning and LMR
+const int full_depth_moves = 4;
+const int reduction_limit = 4;
+
 static inline int negamax(Position &pos, int alpha, int beta, int depth, std::vector<TTEntry> &tt, UCISettings &uci)
 {
     uci.nodes++;
@@ -119,15 +123,46 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth, std::ve
     pos.update_follow_pv(ml);
 
     std::sort(ml.moves, ml.moves + ml.size, compareDescendingMoves);
+
+    int moves_searched = 0;
+
     for (int i = 0; i < ml.size; i++)
     {
         if (!pos.make_move(ml.moves[i].move, MoveType::ALL))
             continue;
 
         legal_moves++;
+        // We want to run a full search
+        if (moves_searched == 0)
+        {
+            score = -negamax(pos, -beta, -alpha, depth - 1, tt, uci);
+        }
+        // Late Move Reduction
+        else
+        {
+            if (moves_searched >= full_depth_moves && depth >= reduction_limit && !in_check && !is_capture(ml.moves[i].move) && !get_promoted_piece(ml.moves[i].move))
+            {
+                score = -negamax(pos, -alpha - 1, -alpha, depth - 2, tt, uci);
+            }
+            else
+            {
+                score = alpha + 1; // Hack to force full depth search
+            }
+            // PVS
+            if (score > alpha)
+            {
+                score = -negamax(pos, -alpha - 1, -alpha, depth - 1, tt, uci);
 
-        score = -negamax(pos, -beta, -alpha, depth - 1, tt, uci);
+                if (score > alpha && score < beta)
+                {
+                    score = -negamax(pos, -beta, -alpha, depth - 1, tt, uci);
+                }
+            }
+        }
+
         pos.take_move();
+
+        moves_searched++;
 
         // PV move found
         if (score > alpha)

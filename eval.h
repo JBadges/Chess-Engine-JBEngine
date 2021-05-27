@@ -22,7 +22,7 @@ namespace JACEA
 
     static inline int get_game_stage_score(const Position &pos)
     {
-        return pos.get_material_white() + pos.get_material_black();
+        return pos.get_material_white() + pos.get_material_black() - piece_to_value[K] - piece_to_value[k];
     }
 
     static inline int get_positional_score(const int game_stage_score, const int piece, const int index)
