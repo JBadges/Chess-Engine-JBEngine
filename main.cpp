@@ -8,6 +8,7 @@
 #include "eval.h"
 #include "search.h"
 #include "types.h"
+#include "transpositiontable.h"
 
 using namespace JACEA;
 
@@ -73,6 +74,7 @@ int main(void)
 	init_mvv_lva();
 
 	Position pos;
+	std::vector<TTEntry> transposition_table(hash_table_size, {0, 0, 0, 0, 0});
 	std::cout << "uciok" << std::endl;
 
 	while (true)
@@ -95,7 +97,7 @@ int main(void)
 		}
 		else if (line.substr(0, 2) == "go")
 		{
-			parse_go(pos, line);
+			parse_go(pos, transposition_table, line);
 		}
 		else if (line.substr(0, 4) == "quit")
 		{
@@ -104,6 +106,7 @@ int main(void)
 		else if (line.substr(0, 4) == "ucinewgame")
 		{
 			parse_position(pos, "position startpos");
+			clear_table(transposition_table, hash_table_size);
 		}
 		else if (line.substr(0, 1) == "p")
 		{

@@ -1,5 +1,6 @@
 #pragma once
 #include "position.h"
+#include "transpositiontable.h"
 
 namespace JACEA
 {
@@ -16,5 +17,5 @@ namespace JACEA
 
     Move parse_move(Position &pos, const char *move_cstr);
 
-    void parse_go(Position &pos, std::string str);
+    void parse_go(Position &pos, std::vector<TTEntry> &tt, std::string str);
 }

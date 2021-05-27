@@ -136,6 +136,7 @@ namespace JACEA
         inline int get_material_white() const { return white_material; }
         inline int get_material_black() const { return black_material; }
         inline int get_ply() const { return ply; }
+        inline u64 get_key() const { return zobrist_key; }
         inline int get_total_moves() const { return history_size; }
         inline Bitboard get_piece_on_square(const Square square) const { return mailbox[square]; }
         inline Bitboard get_piece_board(const Piece piece) const { return piece_boards[piece]; }

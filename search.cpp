@@ -69,7 +69,7 @@ static inline int quiesence(Position &pos, int alpha, int beta, UCISettings &uci
     return alpha;
 }
 
-static inline int negamax(Position &pos, int alpha, int beta, int depth, UCISettings &uci)
+static inline int negamax(Position &pos, int alpha, int beta, int depth, std::vector<TTEntry> &tt, UCISettings &uci)
 {
     uci.nodes++;
 
@@ -83,8 +83,6 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth, UCISett
         return 0;
     }
 
-    pos.update_current_pv_length();
-
     // Draw
     if (pos.get_ply() != 0 && pos.three_fold_repetition())
     {
@@ -92,6 +90,15 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth, UCISett
     }
 
     int score;
+
+    int flag_hash = flag_hash_alpha;
+    bool pv_node = (beta - alpha) > 1;
+    if (pos.get_ply() && !pv_node && (score = read_hash_entry(pos, tt, alpha, beta, depth)) != no_hash)
+    {
+        return score;
+    }
+
+    pos.update_current_pv_length();
 
     if (depth == 0)
         return quiesence(pos, alpha, beta, uci);
@@ -119,12 +126,13 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth, UCISett
 
         legal_moves++;
 
-        score = -negamax(pos, -beta, -alpha, depth - 1, uci);
+        score = -negamax(pos, -beta, -alpha, depth - 1, tt, uci);
         pos.take_move();
 
         // PV move found
         if (score > alpha)
         {
+            flag_hash = flag_hash_exact;
             if (!is_capture(ml.moves[i].move))
                 pos.update_history(ml.moves[i].move, depth);
 
@@ -135,6 +143,7 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth, UCISett
             // Fail-hard (failed high)
             if (score >= beta)
             {
+                record_hash(pos, tt, depth, beta, flag_hash_beta);
                 if (!is_capture(ml.moves[i].move))
                     pos.update_killer(ml.moves[i].move);
                 return beta;
@@ -151,11 +160,13 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth, UCISett
         return 0;
     }
 
+    record_hash(pos, tt, depth, alpha, flag_hash);
+
     // failed low
     return alpha;
 }
 
-void JACEA::search(Position &pos, UCISettings &uci, int depth)
+void JACEA::search(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth)
 {
     int real_best = 0;
     pos.init_search();
@@ -164,7 +175,7 @@ void JACEA::search(Position &pos, UCISettings &uci, int depth)
     {
         pos.follow_pv_true();
         std::cout << "Starting search for depth: " << current_depth << std::endl;
-        int score = negamax(pos, -value_infinite, value_infinite, current_depth, uci);
+        int score = negamax(pos, -value_infinite, value_infinite, current_depth, tt, uci);
         if (!uci.stop)
         {
             real_best = pos.get_pv_best();

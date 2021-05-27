@@ -43,7 +43,7 @@ int JACEA::parse_move(Position &pos, const char *move_cstr)
     return 0;
 }
 
-void JACEA::parse_go(Position &pos, std::string str)
+void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, std::string str)
 {
     auto split = split_string(str, " ");
     UCISettings uci;
@@ -96,7 +96,7 @@ void JACEA::parse_go(Position &pos, std::string str)
     std::cout << "Searching for: " << uci.time_to_stop << "s" << std::endl;
     uci.time_to_stop *= 1000;
     uci.time_to_stop += get_time_ms();
-    search(pos, uci, max_game_ply);
+    search(pos, tt, uci, max_game_ply);
 }
 
 void JACEA::parse_position(Position &pos, std::string str)
