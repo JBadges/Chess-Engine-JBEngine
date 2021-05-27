@@ -5,9 +5,12 @@
 #include "types.h"
 #include "move.h"
 #include <string>
+#include <cstring>
+#include <iostream>
 
 namespace JACEA
 {
+
     // Zobrist key random values
     extern u64 piece_position_key[13][64];
     extern u64 side_key;
@@ -15,8 +18,6 @@ namespace JACEA
     extern int square_to_castle_perm[64];
 
     void init_zobrist_keys();
-
-    constexpr int max_game_ply = 2 << 8;
 
     struct PositionHistory
     {
@@ -53,6 +54,16 @@ namespace JACEA
          */
         int white_material; // white material score
         int black_material; // black material score
+
+        int killer_moves[2][max_game_ply];
+        //[piece][square] score of move
+        int history_moves[12][64];
+
+        int pv_length[max_game_ply];
+        Move pv_table[max_game_ply][max_game_ply];
+
+        bool follow_pv;
+        bool score_pv;
 
         inline void add_piece(const Piece piece, const Square square)
         {
@@ -129,6 +140,9 @@ namespace JACEA
         inline Bitboard get_piece_on_square(const Square square) const { return mailbox[square]; }
         inline Bitboard get_piece_board(const Piece piece) const { return piece_boards[piece]; }
         inline Bitboard get_occupancy_board(const Color color) const { return occupancy[color]; }
+        inline Move get_first_killer_move() const { return killer_moves[0][ply]; }
+        inline Move get_second_killer_move() const { return killer_moves[1][ply]; }
+        inline Move get_history_move(const Piece piece, const Square square) const { return history_moves[piece][square]; }
         inline bool is_square_attacked(const Color attacker, const Square square) const
         {
             assert(attacker == WHITE || attacker == BLACK);
@@ -183,6 +197,71 @@ namespace JACEA
                     return true;
             }
             return false;
+        }
+        inline void update_killer(const Move move)
+        {
+            killer_moves[1][ply] = killer_moves[0][ply];
+            killer_moves[0][ply] = move;
+        }
+        inline void init_search()
+        {
+            follow_pv = false;
+            score_pv = false;
+
+            std::memset(killer_moves, 0, sizeof(killer_moves));
+            std::memset(history_moves, 0, sizeof(history_moves));
+            std::memset(pv_table, 0, sizeof(pv_table));
+            std::memset(pv_length, 0, sizeof(pv_length));
+        }
+        inline void update_history(const Move move, const int depth)
+        {
+            history_moves[get_piece_on_square(get_from_square(move))][get_to_square(move)] += depth;
+        }
+        inline void update_current_pv_length()
+        {
+            pv_length[ply] = ply;
+        }
+        inline void update_pv(const Move move)
+        {
+            pv_table[ply][ply] = move;
+
+            for (int next_ply = ply + 1; next_ply < pv_length[ply + 1]; next_ply++)
+            {
+                pv_table[ply][next_ply] = pv_table[ply + 1][next_ply];
+            }
+
+            pv_length[ply] = pv_length[ply + 1];
+        }
+        inline void update_follow_pv(const MoveList &ml)
+        {
+            if (follow_pv)
+            {
+                follow_pv = false;
+                for (int i = 0; i < ml.size; i++)
+                {
+                    if (pv_table[0][ply] == ml.moves[i].move)
+                    {
+                        score_pv = true;
+                        follow_pv = true;
+                    }
+                }
+            }
+        }
+        inline void follow_pv_true() { follow_pv = true; }
+        inline void set_score_pv(const bool b) { score_pv = b; }
+        inline Move get_pv_best() { return pv_table[0][0]; }
+        inline Move get_pv_ply() { return pv_table[0][ply]; }
+        inline bool get_should_score() { return score_pv; }
+        inline void print_pv_line()
+        {
+            for (int i = 0; i < pv_length[0]; i++)
+            {
+                Move move = pv_table[0][i];
+                std::cout << square_to_coordinate[get_from_square(move)] << square_to_coordinate[get_to_square(move)];
+                if (get_promoted_piece(move) != 0)
+                    std::cout << piece_to_string[get_promoted_piece(move)];
+                std::cout << " ";
+            }
         }
     };
 }

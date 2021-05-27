@@ -7,6 +7,7 @@
 #include <ctime>
 #include "eval.h"
 #include "search.h"
+#include "types.h"
 
 using namespace JACEA;
 

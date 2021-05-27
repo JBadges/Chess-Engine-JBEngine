@@ -3,6 +3,8 @@
 
 namespace JACEA
 {
+    constexpr int max_game_ply = 2 << 8;
+
     typedef int Color;
 
     enum eColor : int
@@ -107,5 +109,15 @@ namespace JACEA
         500,
         900,
         12000};
+    struct ScoredMove
+    {
+        Move move;
+        int score = 0;
+    };
 
+    struct MoveList
+    {
+        ScoredMove moves[max_game_ply];
+        int size = 0;
+    };
 }

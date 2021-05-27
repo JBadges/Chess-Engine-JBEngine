@@ -1,5 +1,6 @@
 #pragma once
 #include "position.h"
+#include "types.h"
 
 namespace JACEA
 {
@@ -8,21 +9,16 @@ namespace JACEA
 
     void init_mvv_lva();
 
-    struct ScoredMove
+    static inline int score_move(Position &pos, const Move move)
     {
-        Move move;
-        int score = 0;
-    };
-
-    struct MoveList
-    {
-        ScoredMove moves[max_game_ply];
-        int size = 0;
-    };
-
-    static inline int score_move(const Position &pos, const Move move)
-    {
-
+        if (pos.get_should_score())
+        {
+            if (pos.get_pv_ply() == move)
+            {
+                pos.set_score_pv(false);
+                return 20000;
+            }
+        }
         if (is_capture(move))
         {
             int piece = pos.get_piece_on_square(get_from_square(move));
@@ -33,16 +29,25 @@ namespace JACEA
         {
             return mvv_lva[P][p] + 10000;
         }
+        else
+        {
+            if (pos.get_first_killer_move() == move)
+                return 9000;
+            else if (pos.get_second_killer_move() == move)
+                return 8000;
+            else
+                return pos.get_history_move(pos.get_piece_on_square(get_from_square(move)), get_to_square(move));
+        }
 
         return 0;
     }
 
-    static inline void add_move(const Position &pos, MoveList &ml, const Move move)
+    static inline void add_move(Position &pos, MoveList &ml, const Move move)
     {
         ml.moves[ml.size++] = {move, score_move(pos, move)};
     }
 
-    static inline void generate_moves(const Position &pos, MoveList &ml)
+    static inline void generate_moves(Position &pos, MoveList &ml)
     {
         if (pos.get_side() == WHITE)
         {
