@@ -9,6 +9,7 @@ namespace JACEA
         bool stop = false;
         long long time_to_stop = -1;
         int moves_to_go = 0;
+        bool completed_iteration = false;
     };
 
     void parse_position(Position &pos, std::string str);

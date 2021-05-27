@@ -89,13 +89,6 @@ void JACEA::parse_go(Position &pos, std::string str)
     {
         uci.time_to_stop = 10;
     }
-    else if (uci.moves_to_go != 0)
-    {
-        int moves = std::min(pos.get_total_moves(), 10);
-        float factor = 2 - moves / 10.0;
-        float target = uci.time_to_stop / static_cast<float>(uci.moves_to_go);
-        uci.time_to_stop = factor * target;
-    }
     else
     {
         uci.time_to_stop = std::min(10.0, std::max(uci.time_to_stop / 20.0, 0.10));

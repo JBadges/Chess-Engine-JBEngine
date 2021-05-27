@@ -14,7 +14,7 @@ static inline bool compareDescendingMoves(const ScoredMove &a, const ScoredMove 
 
 static inline void update_stop(UCISettings &uci)
 {
-    uci.stop = get_time_ms() > uci.time_to_stop;
+    uci.stop = uci.completed_iteration && get_time_ms() > uci.time_to_stop;
 }
 
 static inline int quiesence(Position &pos, int alpha, int beta, UCISettings &uci)
@@ -159,6 +159,7 @@ void JACEA::search(Position &pos, UCISettings &uci, int depth)
 {
     int real_best = 0;
     pos.init_search();
+    uci.completed_iteration = false;
     for (int current_depth = 1; current_depth <= depth; current_depth++)
     {
         pos.follow_pv_true();
@@ -187,6 +188,8 @@ void JACEA::search(Position &pos, UCISettings &uci, int depth)
         }
         pos.print_pv_line();
         std::cout << std::endl;
+
+        uci.completed_iteration = true;
     }
     std::cout << "bestmove " << square_to_coordinate[get_from_square(real_best)] << square_to_coordinate[get_to_square(real_best)];
     if (get_promoted_piece(real_best) != 0)
