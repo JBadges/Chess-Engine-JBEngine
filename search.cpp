@@ -171,11 +171,21 @@ void JACEA::search(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, in
     int real_best = 0;
     pos.init_search();
     uci.completed_iteration = false;
-    for (int current_depth = 1; current_depth <= depth; current_depth++)
+    int alpha = -value_infinite;
+    int beta = value_infinite;
+    for (int current_depth = 1; current_depth <= depth;)
     {
         pos.follow_pv_true();
         std::cout << "Starting search for depth: " << current_depth << std::endl;
-        int score = negamax(pos, -value_infinite, value_infinite, current_depth, tt, uci);
+        int score = negamax(pos, alpha, beta, current_depth, tt, uci);
+        // The search returned value out of our aspirational window. Retry with full range
+        if ((score <= alpha) || (score >= beta))
+        {
+            alpha = -value_infinite;
+            beta = value_infinite;
+            std::cout << "Aspiration window reset: " << current_depth << std::endl;
+            continue;
+        }
         if (!uci.stop)
         {
             real_best = pos.get_pv_best();
@@ -201,6 +211,10 @@ void JACEA::search(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, in
         std::cout << std::endl;
 
         uci.completed_iteration = true;
+        current_depth++;
+        // Asipration window is 50 cp +/-
+        alpha = score - 50;
+        beta = score + 50;
     }
     std::cout << "bestmove " << square_to_coordinate[get_from_square(real_best)] << square_to_coordinate[get_to_square(real_best)];
     if (get_promoted_piece(real_best) != 0)
