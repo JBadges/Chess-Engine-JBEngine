@@ -53,11 +53,11 @@ void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, std::string str)
     {
         if (split[i] == "wtime" && pos.get_side() == WHITE)
         {
-            uci.time_to_stop = std::stoi(split[i + 1]) / 1000.0;
+            uci.time_to_stop = std::stoi(split[i + 1]);
         }
         else if (split[i] == "btime" && pos.get_side() == BLACK)
         {
-            uci.time_to_stop = std::stoi(split[i + 1]) / 1000.0;
+            uci.time_to_stop = std::stoi(split[i + 1]);
         }
         else if (split[i] == "winc" && pos.get_side() == WHITE)
         {
@@ -87,14 +87,13 @@ void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, std::string str)
     // if (uci.maxDepth < 0) uci.maxDepth = MAX_MOVES;
     if (uci.time_to_stop < 0)
     {
-        uci.time_to_stop = 10;
+        uci.time_to_stop = 10 * 1000.0;
     }
     else
     {
-        uci.time_to_stop = std::min(10.0, std::max(uci.time_to_stop / 20.0, 0.10));
+        uci.time_to_stop = std::min(10 * 1000.0, std::max(uci.time_to_stop / 20.0, 10.0));
     }
-    std::cout << "Searching for: " << uci.time_to_stop << "s" << std::endl;
-    uci.time_to_stop *= 1000;
+    std::cout << "Searching for: " << uci.time_to_stop / 1000.0 << "s" << std::endl;
     uci.time_to_stop += get_time_ms();
     search(pos, tt, uci, max_game_ply);
 }

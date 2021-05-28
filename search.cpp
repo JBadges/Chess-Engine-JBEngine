@@ -195,6 +195,12 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth, std::ve
         return 0;
     }
 
+    // If we only have one legal move on our root node or we found mate, end iterative deepening
+    if (pos.get_ply() == 0 && (legal_moves == 1 || score > -value_mate && score < -value_mate_lower || score > value_mate_lower && score < value_mate))
+    {
+        uci.end_early = true;
+    }
+
     record_hash(pos, tt, depth, alpha, flag_hash);
 
     // failed low
@@ -213,8 +219,13 @@ void JACEA::search(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, in
         pos.follow_pv_true();
         std::cout << "Starting search for depth: " << current_depth << std::endl;
         int score = negamax(pos, alpha, beta, current_depth, tt, uci);
+        // If we are forced to move or found mate
+        if (uci.end_early)
+        {
+            std::cout << "Broke out of search early: " << current_depth << std::endl;
+        }
         // The search returned value out of our aspirational window. Retry with full range
-        if ((score <= alpha) || (score >= beta))
+        else if ((score <= alpha) || (score >= beta))
         {
             alpha = -value_infinite;
             beta = value_infinite;
@@ -250,6 +261,11 @@ void JACEA::search(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, in
         // Asipration window is 50 cp +/-
         alpha = score - 50;
         beta = score + 50;
+        // break out
+        if (uci.end_early)
+        {
+            break;
+        }
     }
     std::cout << "bestmove " << square_to_coordinate[get_from_square(real_best)] << square_to_coordinate[get_to_square(real_best)];
     if (get_promoted_piece(real_best) != 0)

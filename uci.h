@@ -11,6 +11,9 @@ namespace JACEA
         long long time_to_stop = -1;
         int moves_to_go = 0;
         bool completed_iteration = false;
+        // Flag used for times when the search can be stopped early with no loss in information
+        // ie. One legal move, Found mate
+        bool end_early = false;
     };
 
     void parse_position(Position &pos, std::string str);
