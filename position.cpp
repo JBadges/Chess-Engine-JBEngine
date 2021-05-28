@@ -352,6 +352,7 @@ bool JACEA::Position::make_move(Move move, const MoveType mt)
 
 void JACEA::Position::take_move()
 {
+    assert(history[history_size - 1].move);
     assert(history_size);
     history_size--;
 
@@ -436,6 +437,39 @@ void JACEA::Position::take_move()
     side ^= 1;
     zobrist_key ^= side_key;
     check();
+}
+
+void JACEA::Position::make_null_move()
+{
+    ply++;
+    history[history_size].move = 0;
+    history[history_size].rule50 = rule50;
+    history[history_size].en_passant = en_passant;
+    history[history_size].castling = castling;
+    history[history_size].key = en_passant;
+
+    if (en_passant != no_sq)
+        zobrist_key ^= piece_position_key[12][en_passant];
+
+    en_passant = no_sq;
+    history_size++;
+    side ^= 1;
+    zobrist_key ^= side_key;
+}
+void JACEA::Position::take_null_move()
+{
+    history_size--;
+
+    ply--;
+
+    castling = history[history_size].castling;
+    en_passant = history[history_size].en_passant;
+    rule50 = history[history_size].rule50;
+
+    if (en_passant != no_sq)
+        zobrist_key ^= piece_position_key[12][en_passant];
+    side ^= 1;
+    zobrist_key ^= side_key;
 }
 
 void JACEA::Position::print() const

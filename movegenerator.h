@@ -16,7 +16,7 @@ namespace JACEA
             if (pos.get_pv_ply() == move)
             {
                 pos.set_score_pv(false);
-                return 20000;
+                return 200000;
             }
         }
         if (is_capture(move))

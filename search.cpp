@@ -69,12 +69,10 @@ static inline int quiesence(Position &pos, int alpha, int beta, UCISettings &uci
     return alpha;
 }
 
-// For Null move pruning and LMR
-const int full_depth_moves = 4;
-const int reduction_limit = 4;
-
 static inline int negamax(Position &pos, int alpha, int beta, int depth, std::vector<TTEntry> &tt, UCISettings &uci)
 {
+    pos.update_current_pv_length();
+
     uci.nodes++;
 
     if (uci.nodes & 15000) // ~ each ms
@@ -88,29 +86,55 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth, std::ve
     }
 
     // Draw
-    if (pos.get_ply() != 0 && pos.three_fold_repetition())
+    if (pos.get_ply() != 0 && pos.draw())
     {
         return 0;
     }
 
-    int score;
+    if (pos.get_ply() >= max_game_ply)
+    {
+        return evaluation(pos);
+    }
 
-    int flag_hash = flag_hash_alpha;
+    if (depth <= 0)
+    {
+        return quiesence(pos, alpha, beta, uci);
+    }
+
     bool pv_node = (beta - alpha) > 1;
+    int eval = evaluation(pos);
+    int score;
+    int flag_hash = flag_hash_alpha;
+
+    // Transposition table lookup
     if (pos.get_ply() && !pv_node && (score = read_hash_entry(pos, tt, alpha, beta, depth)) != no_hash)
     {
         return score;
     }
 
-    pos.update_current_pv_length();
-
-    if (depth == 0)
-        return quiesence(pos, alpha, beta, uci);
-
-    if (pos.get_ply() >= max_game_ply)
-        return evaluation(pos);
+    // Futility pruning
+    if (pos.get_ply() && !pv_node && depth < 9 && eval - (200 * depth) >= beta && eval < value_win)
+        return eval;
 
     bool in_check = pos.is_square_attacked(pos.get_side() ^ 1, (pos.get_side() == WHITE) ? get_firstlsb_index(pos.get_piece_board(K)) : get_firstlsb_index(pos.get_piece_board(k)));
+
+    // Null move pruning
+    if (!pv_node && eval >= beta && !in_check)
+    {
+        // Depth calc from stockfish
+        int depth_reduction = (1090 + 81 * depth) / 256 + std::min(int(eval - beta) / 205, 3);
+
+        pos.make_null_move();
+
+        int null_score = -negamax(pos, -beta, -beta + 1, depth - depth_reduction, tt, uci);
+
+        pos.take_null_move();
+
+        if (null_score >= beta)
+        {
+            return null_score;
+        }
+    }
 
     if (in_check)
         depth++;
@@ -140,7 +164,7 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth, std::ve
         // Late Move Reduction
         else
         {
-            if (moves_searched >= full_depth_moves && depth >= reduction_limit && !in_check && !is_capture(ml.moves[i].move) && !get_promoted_piece(ml.moves[i].move))
+            if (depth >= 3 && moves_searched >= 1 + 2 * pv_node && !in_check && !is_capture(ml.moves[i].move) && !get_promoted_piece(ml.moves[i].move))
             {
                 score = -negamax(pos, -alpha - 1, -alpha, depth - 2, tt, uci);
             }
@@ -190,13 +214,13 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth, std::ve
     {
         if (in_check)
         {
-            return -value_mate + pos.get_ply();
+            return mated_in(pos.get_ply());
         }
         return 0;
     }
 
     // If we only have one legal move on our root node or we found mate, end iterative deepening
-    if (pos.get_ply() == 0 && (legal_moves == 1 || score > -value_mate && score < -value_mate_lower || score > value_mate_lower && score < value_mate))
+    if (pos.get_ply() == 0 && legal_moves == 1 || (score > -value_mate && score < -value_mate_lower) || (score > value_mate_lower && score < value_mate))
     {
         uci.end_early = true;
     }
@@ -207,31 +231,48 @@ static inline int negamax(Position &pos, int alpha, int beta, int depth, std::ve
     return alpha;
 }
 
+static inline int aspiration(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth, int score)
+{
+    if (depth == 1)
+        return negamax(pos, -value_infinite, value_infinite, depth, tt, uci);
+
+    // TODO: Delta can decrease as evaluation metrics become more accurate
+    int delta = 40;
+    int alpha = std::max(score - delta, -value_infinite);
+    int beta = std::min(score + delta, value_infinite);
+    for (; !uci.stop; delta += delta / 2)
+    {
+        score = negamax(pos, alpha, beta, depth, tt, uci);
+
+        if (score <= alpha)
+        {
+            beta = (alpha + beta) / 2;
+            alpha = std::max(alpha - delta, -value_infinite);
+        }
+        else if (score >= beta)
+        {
+            alpha = (alpha + beta) / 2;
+            beta = std::min(beta + delta, value_infinite);
+        }
+        else
+        {
+            return score;
+        }
+    }
+    return 0;
+}
+
 void JACEA::search(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth)
 {
     int real_best = 0;
     pos.init_search();
     uci.completed_iteration = false;
-    int alpha = -value_infinite;
-    int beta = value_infinite;
+    int score = 0;
     for (int current_depth = 1; current_depth <= depth;)
     {
         pos.follow_pv_true();
         std::cout << "Starting search for depth: " << current_depth << std::endl;
-        int score = negamax(pos, alpha, beta, current_depth, tt, uci);
-        // If we are forced to move or found mate
-        if (uci.end_early)
-        {
-            std::cout << "Broke out of search early: " << current_depth << std::endl;
-        }
-        // The search returned value out of our aspirational window. Retry with full range
-        else if ((score <= alpha) || (score >= beta))
-        {
-            alpha = -value_infinite;
-            beta = value_infinite;
-            std::cout << "Aspiration window reset: " << current_depth << std::endl;
-            continue;
-        }
+        score = aspiration(pos, tt, uci, current_depth, score);
         if (!uci.stop)
         {
             real_best = pos.get_pv_best();
@@ -258,9 +299,6 @@ void JACEA::search(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, in
 
         uci.completed_iteration = true;
         current_depth++;
-        // Asipration window is 50 cp +/-
-        alpha = score - 50;
-        beta = score + 50;
         // break out
         if (uci.end_early)
         {

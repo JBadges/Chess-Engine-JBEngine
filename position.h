@@ -125,6 +125,8 @@ namespace JACEA
 
         bool make_move(Move move, const MoveType mt);
         void take_move();
+        void make_null_move();
+        void take_null_move();
 
         void print() const;
 
@@ -198,6 +200,10 @@ namespace JACEA
                     return true;
             }
             return false;
+        }
+        inline bool draw()
+        {
+            return three_fold_repetition() || rule50 >= 100;
         }
         inline void update_killer(const Move move)
         {
