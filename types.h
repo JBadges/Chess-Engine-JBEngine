@@ -3,7 +3,7 @@
 
 namespace JACEA
 {
-    constexpr int max_game_ply = 2 << 8;
+    constexpr int max_game_ply = 300;
 
     typedef int Color;
 

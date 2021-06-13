@@ -17,4 +17,25 @@ namespace JACEA
     {
         return random_u64() & random_u64() & random_u64();
     }
+
+    // From Wikipedia
+
+    static unsigned int rand_32_state = 0b10110101101010101101010101010110;
+
+    /* The state word must be initialized to non-zero */
+    static inline unsigned int xorshift32()
+    {
+        /* Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs" */
+        rand_32_state ^= rand_32_state << 13;
+        rand_32_state ^= rand_32_state >> 17;
+        rand_32_state ^= rand_32_state << 5;
+        return rand_32_state;
+    }
+
+    static inline unsigned int rand_in_range(unsigned int min, unsigned int max)
+    {
+        assert(max > min);
+        return xorshift32() % (max - min) + min;
+    }
+
 }

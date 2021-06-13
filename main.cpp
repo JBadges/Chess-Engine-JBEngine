@@ -81,7 +81,13 @@ int main(void)
 	{
 		std::string line;
 		std::getline(std::cin, line);
-		if (line.substr(0, 3) == "uci")
+		if (line.substr(0, 10) == "ucinewgame")
+		{
+			std::cout << "uci" << std::endl;
+			parse_position(pos, "position startpos");
+			clear_table(transposition_table, hash_table_size);
+		}
+		else if (line.substr(0, 3) == "uci")
 		{
 			std::cout << "id name JACEA 1.0" << std::endl;
 			std::cout << "id author Jackson (JBadges) Brajer" << std::endl;
@@ -102,11 +108,6 @@ int main(void)
 		else if (line.substr(0, 4) == "quit")
 		{
 			break;
-		}
-		else if (line.substr(0, 4) == "ucinewgame")
-		{
-			parse_position(pos, "position startpos");
-			clear_table(transposition_table, hash_table_size);
 		}
 		else if (line.substr(0, 1) == "p")
 		{

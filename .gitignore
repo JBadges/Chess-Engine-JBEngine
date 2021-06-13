@@ -1041,3 +1041,4 @@ dkms.conf
 
 # Extra
 .vscode/settings.json
+/.vscode/

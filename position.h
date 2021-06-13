@@ -67,10 +67,6 @@ namespace JACEA
 
         inline void add_piece(const Piece piece, const Square square)
         {
-            if (mailbox[square] != None)
-            {
-                white_material = white_material;
-            }
             assert(mailbox[square] == None);
             assert(piece != None);
 
@@ -120,6 +116,7 @@ namespace JACEA
 
     public:
         Position();
+        Position &operator=(const Position &rhs);
         void reset();
         void init_from_fen(std::string fen);
 

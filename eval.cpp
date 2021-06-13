@@ -2,7 +2,7 @@
 
 using namespace JACEA;
 
-int JACEA::piece_square_table[2][12][64] = {0};
+int JACEA::piece_square_table[2][12][64] = {};
 
 void JACEA::init_pst()
 {

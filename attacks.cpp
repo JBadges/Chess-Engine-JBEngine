@@ -27,11 +27,11 @@ void JACEA::init_pawn_attacks()
     {
         Bitboard b = 0ULL;
         set_bit(b, square);
-        b = shift<UP_LEFT>(b) | shift<UP_RIGHT>(b);
+        b = shift<Direction::UP_LEFT>(b) | shift<Direction::UP_RIGHT>(b);
         pawn_attacks[WHITE][square] = b;
         b = 0ULL;
         set_bit(b, square);
-        b = shift<DOWN_LEFT>(b) | shift<DOWN_RIGHT>(b);
+        b = shift<Direction::DOWN_LEFT>(b) | shift<Direction::DOWN_RIGHT>(b);
         pawn_attacks[BLACK][square] = b;
     }
 }
@@ -43,14 +43,14 @@ void JACEA::init_knight_attacks()
         Bitboard b = 0ULL;
         set_bit(b, square);
         knight_attacks[square] = 0ULL;
-        knight_attacks[square] |= shift<RIGHT>(shift<RIGHT>(shift<UP>(b)));
-        knight_attacks[square] |= shift<RIGHT>(shift<RIGHT>(shift<DOWN>(b)));
-        knight_attacks[square] |= shift<UP>(shift<UP>(shift<LEFT>(b)));
-        knight_attacks[square] |= shift<UP>(shift<UP>(shift<RIGHT>(b)));
-        knight_attacks[square] |= shift<LEFT>(shift<LEFT>(shift<UP>(b)));
-        knight_attacks[square] |= shift<LEFT>(shift<LEFT>(shift<DOWN>(b)));
-        knight_attacks[square] |= shift<DOWN>(shift<DOWN>(shift<LEFT>(b)));
-        knight_attacks[square] |= shift<DOWN>(shift<DOWN>(shift<RIGHT>(b)));
+        knight_attacks[square] |= shift<Direction::RIGHT>(shift<Direction::RIGHT>(shift<Direction::UP>(b)));
+        knight_attacks[square] |= shift<Direction::RIGHT>(shift<Direction::RIGHT>(shift<Direction::DOWN>(b)));
+        knight_attacks[square] |= shift<Direction::UP>(shift<Direction::UP>(shift<Direction::LEFT>(b)));
+        knight_attacks[square] |= shift<Direction::UP>(shift<Direction::UP>(shift<Direction::RIGHT>(b)));
+        knight_attacks[square] |= shift<Direction::LEFT>(shift<Direction::LEFT>(shift<Direction::UP>(b)));
+        knight_attacks[square] |= shift<Direction::LEFT>(shift<Direction::LEFT>(shift<Direction::DOWN>(b)));
+        knight_attacks[square] |= shift<Direction::DOWN>(shift<Direction::DOWN>(shift<Direction::LEFT>(b)));
+        knight_attacks[square] |= shift<Direction::DOWN>(shift<Direction::DOWN>(shift<Direction::RIGHT>(b)));
     }
 }
 
@@ -61,14 +61,14 @@ void JACEA::init_king_attacks()
         Bitboard b = 0ULL;
         set_bit(b, square);
         king_attacks[square] = 0ULL;
-        king_attacks[square] |= shift<RIGHT>(b);
-        king_attacks[square] |= shift<LEFT>(b);
-        king_attacks[square] |= shift<UP>(b);
-        king_attacks[square] |= shift<DOWN>(b);
-        king_attacks[square] |= shift<UP_RIGHT>(b);
-        king_attacks[square] |= shift<UP_LEFT>(b);
-        king_attacks[square] |= shift<DOWN_RIGHT>(b);
-        king_attacks[square] |= shift<DOWN_LEFT>(b);
+        king_attacks[square] |= shift<Direction::RIGHT>(b);
+        king_attacks[square] |= shift<Direction::LEFT>(b);
+        king_attacks[square] |= shift<Direction::UP>(b);
+        king_attacks[square] |= shift<Direction::DOWN>(b);
+        king_attacks[square] |= shift<Direction::UP_RIGHT>(b);
+        king_attacks[square] |= shift<Direction::UP_LEFT>(b);
+        king_attacks[square] |= shift<Direction::DOWN_RIGHT>(b);
+        king_attacks[square] |= shift<Direction::DOWN_LEFT>(b);
     }
 }
 

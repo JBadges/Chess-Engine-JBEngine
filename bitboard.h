@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <string>
+#include <intrin.h>
 
 namespace JACEA
 {
@@ -9,7 +10,7 @@ namespace JACEA
     // All Bitboards are of type unsigned long long. For readability, having type bitboard allows for better understanding
     typedef u64 Bitboard;
 
-    enum Direction
+    enum class Direction
     {
         UP,
         DOWN,
@@ -143,25 +144,25 @@ namespace JACEA
     {
         switch (dir)
         {
-        case UP:
+        case Direction::UP:
             return bb >> 8ULL;
-        case DOWN:
+        case Direction::DOWN:
             return bb << 8ULL;
-        case RIGHT:
+        case Direction::RIGHT:
             return (bb & NOT_H_FILE) << 1ULL;
-        case LEFT:
+        case Direction::LEFT:
             return (bb & NOT_A_FILE) >> 1ULL;
-        case UP_RIGHT:
+        case Direction::UP_RIGHT:
             return (bb & NOT_H_FILE) >> 7ULL;
-        case UP_LEFT:
+        case Direction::UP_LEFT:
             return (bb & NOT_A_FILE) >> 9ULL;
-        case DOWN_RIGHT:
+        case Direction::DOWN_RIGHT:
             return (bb & NOT_H_FILE) << 9ULL;
-        case DOWN_LEFT:
+        case Direction::DOWN_LEFT:
             return (bb & NOT_A_FILE) << 7ULL;
         default:
             assert(false);
-            break;
+            return 0;
         }
     }
 
