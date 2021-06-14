@@ -91,7 +91,15 @@ void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, std::string str)
     }
     else
     {
-        uci.time_to_stop = std::min(10 * 1000.0, std::max(uci.time_to_stop / 20.0, 10.0));
+        uci.time_to_stop -= 50;
+        if (uci.time_to_stop < 0)
+        {
+            uci.time_to_stop = 0;
+        }
+        else
+        {
+            uci.time_to_stop = std::min(10 * 1000.0, std::max(uci.time_to_stop / 20.0, 10.0));
+        }
     }
     std::cout << "Searching for: " << uci.time_to_stop / 1000.0 << "s" << std::endl;
     uci.time_to_stop += get_time_ms();

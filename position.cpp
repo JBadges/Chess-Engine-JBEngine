@@ -51,10 +51,6 @@ void JACEA::Position::check() const
 		else
 			black_val += piece_to_value[mailbox[sq]];
 	}
-	if (white_val != white_material)
-	{
-		std::cout << "failed white check" << std::endl;
-	}
 	assert(white_val == white_material);
 	assert(black_val == black_material);
 
@@ -111,9 +107,10 @@ JACEA::Position::Position()
 	reset();
 }
 
-Position& JACEA::Position::operator=(const Position& rhs)
+Position &JACEA::Position::operator=(const Position &rhs)
 {
-	if (this == &rhs) return *this;
+	if (this == &rhs)
+		return *this;
 
 	zobrist_key = rhs.zobrist_key;
 	for (int i = 0; i < 12; i++)
@@ -132,11 +129,10 @@ Position& JACEA::Position::operator=(const Position& rhs)
 		history[i] = rhs.history[i];
 	history_size = rhs.history_size;
 
-
 	white_material = rhs.white_material;
 	black_material = rhs.black_material;
 
-	for(int i = 0; i < max_game_ply; i++)
+	for (int i = 0; i < max_game_ply; i++)
 	{
 		killer_moves[0][i] = rhs.killer_moves[0][i];
 		killer_moves[1][i] = rhs.killer_moves[1][i];
@@ -159,11 +155,9 @@ Position& JACEA::Position::operator=(const Position& rhs)
 		}
 	}
 
-
 	follow_pv = rhs.follow_pv;
 	score_pv = rhs.score_pv;
-	
-	
+
 	return *this;
 }
 
@@ -187,6 +181,7 @@ void JACEA::Position::reset()
 
 	white_material = 0;
 	black_material = 0;
+
 	zobrist_key = generate_zobrist_key();
 }
 

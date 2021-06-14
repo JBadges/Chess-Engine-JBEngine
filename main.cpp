@@ -9,10 +9,11 @@
 #include "search.h"
 #include "types.h"
 #include "transpositiontable.h"
+#include "nnue/nnue.h"
 
 using namespace JACEA;
 
-unsigned long long perft(Position &pos, int depth)
+unsigned long long perft(JACEA::Position &pos, int depth)
 {
 	unsigned long long nodes = 0ULL;
 	if (depth == 0)
@@ -32,7 +33,7 @@ unsigned long long perft(Position &pos, int depth)
 	return nodes;
 }
 
-unsigned long long perft_verbose(Position &pos, int depth)
+unsigned long long perft_verbose(JACEA::Position &pos, int depth)
 {
 	if (depth == 0)
 		return 1ULL;
@@ -72,9 +73,13 @@ int main(void)
 	init_zobrist_keys();
 	init_pst();
 	init_mvv_lva();
+	nnue_init("nn-eba324f53044.nnue");
 
-	Position pos;
+	JACEA::Position pos;
 	std::vector<TTEntry> transposition_table(hash_table_size, {0, 0, 0, 0, 0});
+
+	parse_position(pos, "position startpos");
+	clear_table(transposition_table, hash_table_size);
 	std::cout << "uciok" << std::endl;
 
 	while (true)

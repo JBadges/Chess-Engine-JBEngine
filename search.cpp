@@ -19,7 +19,7 @@ static inline void update_stop(UCISettings &uci)
 	uci.stop = uci.completed_iteration && get_time_ms() > uci.time_to_stop;
 }
 
-static inline int quiesence(Position &pos, int alpha, int beta, UCISettings &uci)
+static inline int quiesence(JACEA::Position &pos, int alpha, int beta, UCISettings &uci)
 {
 	uci.nodes++;
 
@@ -71,7 +71,7 @@ static inline int quiesence(Position &pos, int alpha, int beta, UCISettings &uci
 	return alpha;
 }
 
-static inline int negamax(bool mainThread, Position &pos, int alpha, int beta, int depth, std::vector<TTEntry> &tt, UCISettings &uci)
+static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int beta, int depth, std::vector<TTEntry> &tt, UCISettings &uci)
 {
 	if (uci.stop_threads)
 		return 0;
@@ -110,7 +110,7 @@ static inline int negamax(bool mainThread, Position &pos, int alpha, int beta, i
 	int score;
 	int flag_hash = flag_hash_alpha;
 
-	// Transposition table lookup
+	// TransJACEA::Position table lookup
 	if (pos.get_ply() && (!pv_node || !mainThread) && (score = read_hash_entry(pos, tt, alpha, beta, depth)) != no_hash)
 	{
 		return score;
@@ -238,7 +238,7 @@ static inline int negamax(bool mainThread, Position &pos, int alpha, int beta, i
 	return alpha;
 }
 
-static inline int aspiration(bool mainThread, Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth, int score)
+static inline int aspiration(bool mainThread, JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth, int score)
 {
 	if (depth == 1)
 		return negamax(true, pos, -value_infinite, value_infinite, depth, tt, uci);
@@ -269,13 +269,13 @@ static inline int aspiration(bool mainThread, Position &pos, std::vector<TTEntry
 	return 0;
 }
 
-void JACEA::search(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth)
+void JACEA::search(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth)
 {
 	int real_best = 0;
 	pos.init_search();
 	uci.completed_iteration = false;
 
-	Position *threadPositions = new Position[4];
+	JACEA::Position *threadPositions = new JACEA::Position[4];
 	std::thread threads[4];
 	int score = 0;
 	for (int i = 0; i < 4; i++)

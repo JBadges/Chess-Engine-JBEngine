@@ -40,6 +40,8 @@ namespace JACEA
         None
     };
 
+    const Piece to_nnue_piece[12] = {6, 5, 4, 3, 2, 1, 12, 11, 10, 9, 8, 7};
+
     const Color color_from_piece[] = {
         WHITE,
         WHITE,
