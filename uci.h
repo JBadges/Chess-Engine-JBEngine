@@ -1,6 +1,7 @@
 #pragma once
 #include "position.h"
 #include "transpositiontable.h"
+#include <sstream>
 
 namespace JACEA
 {
@@ -17,9 +18,9 @@ namespace JACEA
         bool stop_threads = false;
     };
 
-    void parse_position(Position &pos, std::string str);
+    void parse_position(Position &pos, std::istringstream &tokenizer);
 
     Move parse_move(Position &pos, const char *move_cstr);
 
-    void parse_go(Position &pos, std::vector<TTEntry> &tt, std::string str);
+    void parse_go(Position &pos, std::vector<TTEntry> &tt, std::istringstream &tokenizer);
 }

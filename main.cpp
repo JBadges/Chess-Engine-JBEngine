@@ -1,5 +1,7 @@
 #include <cassert>
 
+#include <string>
+#include <sstream>
 #include <iostream>
 #include "random.h"
 #include "movegenerator.h"
@@ -9,7 +11,6 @@
 #include "search.h"
 #include "types.h"
 #include "transpositiontable.h"
-#include "nnue/nnue.h"
 
 using namespace JACEA;
 
@@ -78,43 +79,42 @@ int main(void)
 	JACEA::Position pos;
 	std::vector<TTEntry> transposition_table(hash_table_size, {0, 0, 0, 0, 0});
 
-	parse_position(pos, "position startpos");
-	clear_table(transposition_table, hash_table_size);
 	std::cout << "uciok" << std::endl;
 
 	while (true)
 	{
-		std::string line;
+		std::string line, token;
 		std::getline(std::cin, line);
-		if (line.substr(0, 10) == "ucinewgame")
+		std::istringstream tokenizer{line};
+		tokenizer >> token;
+
+		if (token == "ucinewgame")
 		{
-			std::cout << "uci" << std::endl;
-			parse_position(pos, "position startpos");
 			clear_table(transposition_table, hash_table_size);
 		}
-		else if (line.substr(0, 3) == "uci")
+		else if (token == "uci")
 		{
 			std::cout << "id name JACEA 1.0" << std::endl;
 			std::cout << "id author Jackson (JBadges) Brajer" << std::endl;
 			std::cout << "uciok" << std::endl;
 		}
-		else if (line.substr(0, 7) == "isready")
+		else if (token == "isready")
 		{
 			std::cout << "readyok" << std::endl;
 		}
-		else if (line.substr(0, 8) == "position")
+		else if (token == "position")
 		{
-			parse_position(pos, line);
+			parse_position(pos, tokenizer);
 		}
-		else if (line.substr(0, 2) == "go")
+		else if (token == "go")
 		{
-			parse_go(pos, transposition_table, line);
+			parse_go(pos, transposition_table, tokenizer);
 		}
-		else if (line.substr(0, 4) == "quit")
+		else if (token == "quit")
 		{
 			break;
 		}
-		else if (line.substr(0, 1) == "p")
+		else if (token == "p")
 		{
 			pos.print();
 			std::cout << "Turn (0=w,1=b): " << pos.get_side() << std::endl;

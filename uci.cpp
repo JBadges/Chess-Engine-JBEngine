@@ -2,7 +2,9 @@
 #include "movegenerator.h"
 #include "utility.h"
 #include "search.h"
+#include <sstream>
 #include <iostream>
+#include <string>
 
 using namespace JACEA;
 
@@ -16,7 +18,6 @@ int JACEA::parse_move(Position &pos, const char *move_cstr)
     const int rank_to = 8 - (*move_cstr++ - '0');
     const int to_square = rank_to * 8 + file_to;
 
-    // TODO: Calling generate moves is costly. Generating the move manually once a mailbox it set up will increase performance. This isnt that important as this is run <500 times in an entire UCI game
     MoveList ml;
     generate_moves(pos, ml);
     for (int i = 0; i < ml.size; i++)
@@ -43,48 +44,59 @@ int JACEA::parse_move(Position &pos, const char *move_cstr)
     return 0;
 }
 
-void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, std::string str)
+void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, std::istringstream &tokenizer)
 {
-    auto split = split_string(str, " ");
+    int max_depth = -1;
+    int increment = 0;
+
     UCISettings uci;
     uci.stop = false;
     uci.time_to_stop = -1;
-    for (long long unsigned int i = 0; i < split.size(); i++)
+
+    std::string token;
+    while (tokenizer >> token)
     {
-        if (split[i] == "wtime" && pos.get_side() == WHITE)
+        if (token == "wtime" && pos.get_side() == WHITE)
         {
-            uci.time_to_stop = std::stoi(split[i + 1]);
+            tokenizer >> token;
+            uci.time_to_stop = std::stoi(token);
         }
-        else if (split[i] == "btime" && pos.get_side() == BLACK)
+        else if (token == "btime" && pos.get_side() == BLACK)
         {
-            uci.time_to_stop = std::stoi(split[i + 1]);
+            tokenizer >> token;
+            uci.time_to_stop = std::stoi(token);
         }
-        else if (split[i] == "winc" && pos.get_side() == WHITE)
+        else if (token == "winc" && pos.get_side() == WHITE)
         {
-            // uci.inc = std::stoi(split[i + 1]);
+            tokenizer >> token;
+            increment = std::stoi(token);
         }
-        else if (split[i] == "binc" && pos.get_side() == BLACK)
+        else if (token == "binc" && pos.get_side() == BLACK)
         {
-            // uci.inc = std::stoi(split[i + 1]);
+            tokenizer >> token;
+            increment = std::stoi(token);
         }
-        else if (split[i] == "movetime")
+        else if (token == "movetime")
         {
             // uci.moveTime = std::stoi(split[i + 1]);
         }
-        else if (split[i] == "movestogo")
+        else if (token == "movestogo")
         {
-            uci.moves_to_go = std::stoi(split[i + 1]);
+            // uci.moves_to_go = std::stoi(split[i + 1]);
         }
-        else if (split[i] == "depth")
+        else if (token == "depth")
         {
-            // uci.maxDepth = std::stoi(split[i + 1]);
+            tokenizer >> token;
+            max_depth = std::stoi(token);
         }
-        else if (split[i] == "infinite")
+        else if (token == "infinite")
         {
             // uci.infinite = true;
         }
     }
-    // if (uci.maxDepth < 0) uci.maxDepth = MAX_MOVES;
+
+    if (max_depth < 0)
+        max_depth = max_game_ply;
     if (uci.time_to_stop < 0)
     {
         uci.time_to_stop = 10 * 1000.0;
@@ -98,38 +110,47 @@ void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, std::string str)
         }
         else
         {
-            uci.time_to_stop = std::min(10 * 1000.0, std::max(uci.time_to_stop / 20.0, 10.0));
+            uci.time_to_stop = std::min(10 * 1000.0, uci.time_to_stop / 20.0);
         }
+        // Use 95% of our increment time for each move
+        uci.time_to_stop += increment * 0.95;
     }
-    std::cout << "Searching for: " << uci.time_to_stop / 1000.0 << "s" << std::endl;
+    std::cout << "Searching for: " << uci.time_to_stop / 1000.0 << "s"
+              << " to a max depth of " << max_depth << std::endl;
     uci.time_to_stop += get_time_ms();
-    search(pos, tt, uci, max_game_ply);
+    search(pos, tt, uci, max_depth);
 }
 
-void JACEA::parse_position(Position &pos, std::string str)
+void JACEA::parse_position(Position &pos, std::istringstream &tokenizer)
 {
-    auto split = split_string(str, " ");
-    if (split[1] == "startpos")
+    std::string token;
+    tokenizer >> token;
+
+    if (token == "startpos")
     {
         pos.init_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-        split.erase(split.begin(), split.begin() + 2);
+        tokenizer >> token; // Since fen option removes the moves token
+    }
+    else if (token == "fen")
+    {
+        // Init from fen
+        std::string fen = "";
+        while (tokenizer >> token && token != "moves")
+            fen += token + " ";
+        pos.init_from_fen(fen);
     }
     else
     {
-        // Init from fen
-        pos.init_from_fen(split[2] + " " + split[3] + " " + split[4] + " " + split[5] + " " + split[6] + " " + split[7]);
-        split.erase(split.begin(), split.begin() + 8);
+        // We should have had either startpos or fen
+        assert(false);
+        return;
     }
-    if (!split.empty() && split[0] == "moves")
+    while (tokenizer >> token)
     {
-        split.erase(split.begin(), split.begin() + 1);
-        for (auto &move_str : split)
-        {
-            auto move = parse_move(pos, move_str.c_str());
-            if (move == 0)
-                assert(false);
-            pos.make_move(move, MoveType::ALL);
-        }
+        auto move = parse_move(pos, token.c_str());
+        if (move == 0)
+            assert(false);
+        pos.make_move(move, MoveType::ALL);
     }
     pos.reset_ply();
 }

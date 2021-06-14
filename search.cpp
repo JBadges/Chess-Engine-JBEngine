@@ -19,9 +19,10 @@ static inline void update_stop(UCISettings &uci)
 	uci.stop = uci.completed_iteration && get_time_ms() > uci.time_to_stop;
 }
 
-static inline int quiesence(JACEA::Position &pos, int alpha, int beta, UCISettings &uci)
+static inline int quiesence(bool mainThread, JACEA::Position &pos, int alpha, int beta, UCISettings &uci)
 {
-	uci.nodes++;
+	if (mainThread)
+		uci.nodes++;
 
 	if (uci.nodes & 15000) // ~ each ms
 	{
@@ -52,7 +53,7 @@ static inline int quiesence(JACEA::Position &pos, int alpha, int beta, UCISettin
 		if (!pos.make_move(ml.moves[i].move, MoveType::CAPTURES))
 			continue;
 
-		const int score = -quiesence(pos, -beta, -alpha, uci);
+		const int score = -quiesence(mainThread, pos, -beta, -alpha, uci);
 
 		pos.take_move();
 
@@ -77,7 +78,8 @@ static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int 
 		return 0;
 	pos.update_current_pv_length();
 
-	uci.nodes++;
+	if (mainThread)
+		uci.nodes++;
 
 	if (uci.nodes & 15000) // ~ each ms
 	{
@@ -102,7 +104,7 @@ static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int 
 
 	if (depth <= 0)
 	{
-		return quiesence(pos, alpha, beta, uci);
+		return quiesence(mainThread, pos, alpha, beta, uci);
 	}
 
 	bool pv_node = (beta - alpha) > 1;
@@ -110,10 +112,30 @@ static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int 
 	int score;
 	int flag_hash = flag_hash_alpha;
 
-	// TransJACEA::Position table lookup
-	if (pos.get_ply() && (!pv_node || !mainThread) && (score = read_hash_entry(pos, tt, alpha, beta, depth)) != no_hash)
+	// Transposition table lookup
+	if (pos.get_ply() && ((score = read_hash_entry(pos, tt, alpha, beta, depth)) != no_hash) && !pv_node && pos.get_fifty() < 90)
 	{
 		return score;
+	}
+
+	// Razoring
+	int razor_value = eval + 125;
+	if (pos.get_ply() && razor_value < beta)
+	{
+		if (depth == 1)
+		{
+			int new_val = quiesence(mainThread, pos, alpha, beta, uci);
+			return std::max(new_val, razor_value);
+		}
+		razor_value += 175;
+		if (razor_value < beta && depth <= 3)
+		{
+			int new_val = quiesence(mainThread, pos, alpha, beta, uci);
+			if (new_val < beta)
+			{
+				return std::max(new_val, razor_value);
+			}
+		}
 	}
 
 	// Futility pruning
@@ -226,8 +248,8 @@ static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int 
 		return 0;
 	}
 
-	// If we only have one legal move on our root node or we found mate, end iterative deepening
-	if (pos.get_ply() == 0 && (legal_moves == 1 || (score > -value_mate && score < -value_mate_lower) || (score > value_mate_lower && score < value_mate)))
+	// If we only have one legal move on our root node end iterative deepening
+	if (pos.get_ply() == 0 && legal_moves == 1)
 	{
 		uci.end_early = true;
 	}
@@ -243,8 +265,7 @@ static inline int aspiration(bool mainThread, JACEA::Position &pos, std::vector<
 	if (depth == 1)
 		return negamax(true, pos, -value_infinite, value_infinite, depth, tt, uci);
 
-	// TODO: Delta can decrease as evaluation metrics become more accurate
-	int delta = 40;
+	int delta = 25;
 	int alpha = std::max(score - delta, -value_infinite);
 	int beta = std::min(score + delta, value_infinite);
 	for (; !uci.stop; delta += delta / 2)
@@ -271,29 +292,30 @@ static inline int aspiration(bool mainThread, JACEA::Position &pos, std::vector<
 
 void JACEA::search(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth)
 {
+	auto start_time = get_time_ms();
 	int real_best = 0;
 	pos.init_search();
 	uci.completed_iteration = false;
 
-	JACEA::Position *threadPositions = new JACEA::Position[4];
-	std::thread threads[4];
+	const int workers = 3;
+	JACEA::Position *threadPositions = new JACEA::Position[workers];
+	std::thread threads[workers];
 	int score = 0;
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < workers; i++)
 	{
 		threadPositions[i] = pos;
 	}
 	for (int current_depth = 1; current_depth <= depth;)
 	{
 		pos.follow_pv_true();
-		std::cout << "Starting search for depth: " << current_depth << std::endl;
 		uci.stop_threads = false;
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < workers; i++)
 		{
-			threads[i] = std::thread(aspiration, false, std::ref(threadPositions[i]), std::ref(tt), std::ref(uci), current_depth, score);
+			threads[i] = std::thread(aspiration, false, std::ref(threadPositions[i]), std::ref(tt), std::ref(uci), current_depth + i / 2 + 1, score);
 		}
 		score = aspiration(true, pos, tt, uci, current_depth, score);
 		uci.stop_threads = true;
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < workers; i++)
 		{
 			threads[i].join();
 		}
@@ -304,27 +326,27 @@ void JACEA::search(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &
 		}
 		else
 		{
-			std::cout << "Timed out of search: " << current_depth << std::endl;
 			break;
 		}
 		if (score > -value_mate && score < -value_mate_lower)
 		{
-			printf("info score mate %d depth %d nodes %llu pv ", -(score + value_mate) / 2 - 1, current_depth, uci.nodes);
+			printf("info score mate %d depth %d nodes %llu time %llu pv ", -(score + value_mate) / 2 - 1, current_depth, uci.nodes, get_time_ms() - start_time);
+			uci.end_early = true;
 		}
 		else if (score > value_mate_lower && score < value_mate)
 		{
-			printf("info score mate %d depth %d nodes %llu pv ", (value_mate - score) / 2 + 1, current_depth, uci.nodes);
+			printf("info score mate %d depth %d nodes %llu time %llu pv ", (value_mate - score) / 2 + 1, current_depth, uci.nodes, get_time_ms() - start_time);
+			uci.end_early = true;
 		}
 		else
 		{
-			printf("info score cp %d depth %d nodes %llu pv ", score, current_depth, uci.nodes);
+			printf("info score cp %d depth %d nodes %llu time %llu pv ", score, current_depth, uci.nodes, get_time_ms() - start_time);
 		}
 		pos.print_pv_line();
 		std::cout << std::endl;
 
 		uci.completed_iteration = true;
 		current_depth++;
-		// break out
 		if (uci.end_early)
 		{
 			break;
@@ -333,5 +355,5 @@ void JACEA::search(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &
 	std::cout << "bestmove " << square_to_coordinate[get_from_square(real_best)] << square_to_coordinate[get_to_square(real_best)];
 	if (get_promoted_piece(real_best) != 0)
 		std::cout << piece_to_string[get_promoted_piece(real_best)];
-	std::cout << std::endl;
+	std::cout << '\n';
 }
