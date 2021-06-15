@@ -55,12 +55,12 @@ namespace JACEA
         int white_material; // white material score
         int black_material; // black material score
 
-        int killer_moves[2][max_game_ply];
+        int killer_moves[2][max_game_depth];
         //[piece][square] score of move
         int history_moves[12][64];
 
-        int pv_length[max_game_ply];
-        Move pv_table[max_game_ply][max_game_ply];
+        int pv_length[max_game_depth];
+        Move pv_table[max_game_depth][max_game_depth];
 
         bool follow_pv;
         bool score_pv;

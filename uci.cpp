@@ -96,7 +96,7 @@ void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, std::istringstream
     }
 
     if (max_depth < 0)
-        max_depth = max_game_ply;
+        max_depth = max_game_depth;
     if (uci.time_to_stop < 0)
     {
         uci.time_to_stop = 10 * 1000.0;

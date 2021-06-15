@@ -16,6 +16,7 @@ namespace JACEA
         // ie. One legal move, Found mate
         bool end_early = false;
         bool stop_threads = false;
+        int largest_depth = 0;
     };
 
     void parse_position(Position &pos, std::istringstream &tokenizer);

@@ -22,7 +22,10 @@ static inline void update_stop(UCISettings &uci)
 static inline int quiesence(bool mainThread, JACEA::Position &pos, int alpha, int beta, UCISettings &uci)
 {
 	if (mainThread)
+	{
 		uci.nodes++;
+		uci.largest_depth = std::max(uci.largest_depth, pos.get_ply());
+	}
 
 	if (uci.nodes & 15000) // ~ each ms
 	{
@@ -79,7 +82,10 @@ static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int 
 	pos.update_current_pv_length();
 
 	if (mainThread)
+	{
 		uci.nodes++;
+		uci.largest_depth = std::max(uci.largest_depth, pos.get_ply());
+	}
 
 	if (uci.nodes & 15000) // ~ each ms
 	{
@@ -118,6 +124,11 @@ static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int 
 		return score;
 	}
 
+	bool in_check = pos.is_square_attacked(pos.get_side() ^ 1, (pos.get_side() == WHITE) ? get_firstlsb_index(pos.get_piece_board(K)) : get_firstlsb_index(pos.get_piece_board(k)));
+
+	if (in_check)
+		depth++;
+
 	// Razoring
 	int razor_value = eval + 125;
 	if (pos.get_ply() && razor_value < beta)
@@ -142,8 +153,6 @@ static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int 
 	if (pos.get_ply() && !pv_node && depth < 9 && eval - (200 * depth) >= beta && eval < value_win)
 		return eval;
 
-	bool in_check = pos.is_square_attacked(pos.get_side() ^ 1, (pos.get_side() == WHITE) ? get_firstlsb_index(pos.get_piece_board(K)) : get_firstlsb_index(pos.get_piece_board(k)));
-
 	// Null move pruning
 	if (!pv_node && eval >= beta && !in_check)
 	{
@@ -161,9 +170,6 @@ static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int 
 			return null_score;
 		}
 	}
-
-	if (in_check)
-		depth++;
 
 	int legal_moves = 0;
 
@@ -309,6 +315,7 @@ void JACEA::search(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &
 	{
 		pos.follow_pv_true();
 		uci.stop_threads = false;
+		uci.largest_depth = 0;
 		for (int i = 0; i < workers; i++)
 		{
 			threads[i] = std::thread(aspiration, false, std::ref(threadPositions[i]), std::ref(tt), std::ref(uci), current_depth + i / 2 + 1, score);
@@ -330,17 +337,17 @@ void JACEA::search(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &
 		}
 		if (score > -value_mate && score < -value_mate_lower)
 		{
-			printf("info score mate %d depth %d nodes %llu time %llu pv ", -(score + value_mate) / 2 - 1, current_depth, uci.nodes, get_time_ms() - start_time);
+			printf("info score mate %d depth %d seldepth %d nodes %llu time %llu pv ", -(score + value_mate) / 2 - 1, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time);
 			uci.end_early = true;
 		}
 		else if (score > value_mate_lower && score < value_mate)
 		{
-			printf("info score mate %d depth %d nodes %llu time %llu pv ", (value_mate - score) / 2 + 1, current_depth, uci.nodes, get_time_ms() - start_time);
+			printf("info score mate %d depth %d seldepth %d nodes %llu time %llu pv ", (value_mate - score) / 2 + 1, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time);
 			uci.end_early = true;
 		}
 		else
 		{
-			printf("info score cp %d depth %d nodes %llu time %llu pv ", score, current_depth, uci.nodes, get_time_ms() - start_time);
+			printf("info score cp %d depth %d seldepth %d nodes %llu time %llu pv ", score, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time);
 		}
 		pos.print_pv_line();
 		std::cout << std::endl;

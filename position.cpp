@@ -132,7 +132,7 @@ Position &JACEA::Position::operator=(const Position &rhs)
 	white_material = rhs.white_material;
 	black_material = rhs.black_material;
 
-	for (int i = 0; i < max_game_ply; i++)
+	for (int i = 0; i < max_game_depth; i++)
 	{
 		killer_moves[0][i] = rhs.killer_moves[0][i];
 		killer_moves[1][i] = rhs.killer_moves[1][i];
@@ -145,11 +145,11 @@ Position &JACEA::Position::operator=(const Position &rhs)
 		}
 	}
 
-	for (int i = 0; i < max_game_ply; i++)
+	for (int i = 0; i < max_game_depth; i++)
 		pv_length[i] = rhs.pv_length[i];
-	for (int i = 0; i < max_game_ply; i++)
+	for (int i = 0; i < max_game_depth; i++)
 	{
-		for (int j = 0; j < max_game_ply; j++)
+		for (int j = 0; j < max_game_depth; j++)
 		{
 			pv_table[i][j] = rhs.pv_table[i][j];
 		}

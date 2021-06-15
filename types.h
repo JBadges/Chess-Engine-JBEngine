@@ -3,7 +3,9 @@
 
 namespace JACEA
 {
-    constexpr int max_game_ply = 300;
+    constexpr int max_game_ply = 500;
+    constexpr int max_game_depth = 64;
+    constexpr int max_moves = 250;
 
     typedef int Color;
 
@@ -119,7 +121,7 @@ namespace JACEA
 
     struct MoveList
     {
-        ScoredMove moves[max_game_ply];
+        ScoredMove moves[max_moves];
         int size = 0;
     };
 
