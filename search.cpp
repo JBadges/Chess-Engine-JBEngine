@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <thread>
 #include "random.h"
+#include "./syzygy/tbprobe.h"
 
 using namespace JACEA;
 
@@ -122,6 +123,50 @@ static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int 
 	if (pos.get_ply() && ((score = read_hash_entry(pos, tt, alpha, beta, depth)) != no_hash) && !pv_node && pos.get_fifty() < 90)
 	{
 		return score;
+	}
+
+	// Tablebase lookup
+	if (pos.get_ply() && pop_count(pos.get_occupancy_board(BOTH)) <= 5)
+	{
+		if (mainThread)
+			uci.table_base_hits++;
+
+		unsigned res = tb_probe_wdl(bswap64(pos.get_occupancy_board(WHITE)),
+									bswap64(pos.get_occupancy_board(BLACK)),
+									bswap64(pos.get_piece_board(k) | pos.get_piece_board(K)),
+									bswap64(pos.get_piece_board(q) | pos.get_piece_board(Q)),
+									bswap64(pos.get_piece_board(r) | pos.get_piece_board(R)),
+									bswap64(pos.get_piece_board(b) | pos.get_piece_board(B)),
+									bswap64(pos.get_piece_board(n) | pos.get_piece_board(N)),
+									bswap64(pos.get_piece_board(p) | pos.get_piece_board(P)),
+									pos.get_fifty(),
+									pos.get_castling_perms(),
+									pos.get_enpassant_square() == no_sq ? 0 : pos.get_enpassant_square(),
+									pos.get_side() ^ 1);
+
+		if (res != TB_RESULT_FAILED)
+		{
+			unsigned wdl = TB_GET_WDL(res);
+			switch (wdl)
+			{
+				// Lost
+			case 0:
+				return mated_in(pos.get_ply());
+				break;
+				// Draw
+			case 1:
+			case 2:
+			case 3:
+				return 0;
+				break;
+				// Win
+			case 4:
+				return mate_in(pos.get_ply());
+				break;
+			default:
+				break;
+			}
+		}
 	}
 
 	bool in_check = pos.is_square_attacked(pos.get_side() ^ 1, (pos.get_side() == WHITE) ? get_firstlsb_index(pos.get_piece_board(K)) : get_firstlsb_index(pos.get_piece_board(k)));
@@ -298,10 +343,49 @@ static inline int aspiration(bool mainThread, JACEA::Position &pos, std::vector<
 
 void JACEA::search(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth)
 {
+	// Check if we are in a table base position and return our best move immediately
+	unsigned res = tb_probe_root(bswap64(pos.get_occupancy_board(WHITE)),
+								 bswap64(pos.get_occupancy_board(BLACK)),
+								 bswap64(pos.get_piece_board(k) | pos.get_piece_board(K)),
+								 bswap64(pos.get_piece_board(q) | pos.get_piece_board(Q)),
+								 bswap64(pos.get_piece_board(r) | pos.get_piece_board(R)),
+								 bswap64(pos.get_piece_board(b) | pos.get_piece_board(B)),
+								 bswap64(pos.get_piece_board(n) | pos.get_piece_board(N)),
+								 bswap64(pos.get_piece_board(p) | pos.get_piece_board(P)),
+								 pos.get_fifty(),
+								 pos.get_castling_perms(),
+								 pos.get_enpassant_square(),
+								 pos.get_side() ^ 1,
+								 nullptr);
+	// if res didn't fail we are in a TB and can play perfect moves
+	if (res != TB_RESULT_FAILED)
+	{
+		std::cout << "bestmove " << square_to_coordinate[to_nnue_square[TB_GET_FROM(res)]] << square_to_coordinate[to_nnue_square[TB_GET_TO(res)]];
+		switch (TB_GET_PROMOTES(res))
+		{
+		case TB_PROMOTES_QUEEN:
+			std::cout << 'Q';
+			break;
+		case TB_PROMOTES_ROOK:
+			std::cout << 'R';
+			break;
+		case TB_PROMOTES_BISHOP:
+			std::cout << 'B';
+			break;
+		case TB_PROMOTES_KNIGHT:
+			std::cout << 'N';
+			break;
+		}
+		std::cout << std::endl;
+		return;
+	}
+
 	auto start_time = get_time_ms();
 	int real_best = 0;
 	pos.init_search();
 	uci.completed_iteration = false;
+	uci.table_base_hits = 0;
+	uci.nodes = 0;
 
 	const int workers = 3;
 	JACEA::Position *threadPositions = new JACEA::Position[workers];
@@ -337,17 +421,17 @@ void JACEA::search(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &
 		}
 		if (score > -value_mate && score < -value_mate_lower)
 		{
-			printf("info score mate %d depth %d seldepth %d nodes %llu time %llu pv ", -(score + value_mate) / 2 - 1, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time);
+			printf("info score mate %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", -(score + value_mate) / 2 - 1, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time, uci.table_base_hits);
 			uci.end_early = true;
 		}
 		else if (score > value_mate_lower && score < value_mate)
 		{
-			printf("info score mate %d depth %d seldepth %d nodes %llu time %llu pv ", (value_mate - score) / 2 + 1, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time);
+			printf("info score mate %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", (value_mate - score) / 2 + 1, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time, uci.table_base_hits);
 			uci.end_early = true;
 		}
 		else
 		{
-			printf("info score cp %d depth %d seldepth %d nodes %llu time %llu pv ", score, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time);
+			printf("info score cp %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", score, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time, uci.table_base_hits);
 		}
 		pos.print_pv_line();
 		std::cout << std::endl;

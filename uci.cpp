@@ -103,6 +103,7 @@ void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, std::istringstream
     }
     else
     {
+        uci.time_to_stop += increment * 0.95;
         uci.time_to_stop -= 50;
         if (uci.time_to_stop < 0)
         {
@@ -113,7 +114,6 @@ void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, std::istringstream
             uci.time_to_stop = std::min(10 * 1000.0, uci.time_to_stop / 20.0);
         }
         // Use 95% of our increment time for each move
-        uci.time_to_stop += increment * 0.95;
     }
     std::cout << "Searching for: " << uci.time_to_stop / 1000.0 << "s"
               << " to a max depth of " << max_depth << std::endl;

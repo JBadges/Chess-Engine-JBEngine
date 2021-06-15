@@ -216,6 +216,7 @@ void JACEA::Position::init_from_fen(std::string fen)
 	// Step 3: init side, castling, enPassant
 	while (*c == ' ')
 		c++;
+
 	side = (*c++ == 'w') ? WHITE : BLACK;
 
 	while (*++c != ' ')

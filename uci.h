@@ -17,6 +17,7 @@ namespace JACEA
         bool end_early = false;
         bool stop_threads = false;
         int largest_depth = 0;
+        unsigned long long table_base_hits = 0;
     };
 
     void parse_position(Position &pos, std::istringstream &tokenizer);
