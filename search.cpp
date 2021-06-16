@@ -343,43 +343,61 @@ static inline int aspiration(bool mainThread, JACEA::Position &pos, std::vector<
 
 void JACEA::search(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth)
 {
-	// Check if we are in a table base position and return our best move immediately
-	unsigned res = tb_probe_root(bswap64(pos.get_occupancy_board(WHITE)),
-								 bswap64(pos.get_occupancy_board(BLACK)),
-								 bswap64(pos.get_piece_board(k) | pos.get_piece_board(K)),
-								 bswap64(pos.get_piece_board(q) | pos.get_piece_board(Q)),
-								 bswap64(pos.get_piece_board(r) | pos.get_piece_board(R)),
-								 bswap64(pos.get_piece_board(b) | pos.get_piece_board(B)),
-								 bswap64(pos.get_piece_board(n) | pos.get_piece_board(N)),
-								 bswap64(pos.get_piece_board(p) | pos.get_piece_board(P)),
-								 pos.get_fifty(),
-								 pos.get_castling_perms(),
-								 pos.get_enpassant_square(),
-								 pos.get_side() ^ 1,
-								 nullptr);
-	// if res didn't fail we are in a TB and can play perfect moves
-	if (res != TB_RESULT_FAILED)
+	if (pop_count(pos.get_occupancy_board(BOTH)) <= 5)
 	{
-		std::cout << "bestmove " << square_to_coordinate[to_nnue_square[TB_GET_FROM(res)]] << square_to_coordinate[to_nnue_square[TB_GET_TO(res)]];
-		switch (TB_GET_PROMOTES(res))
+		// Check if we are in a table base position and return our best move immediately
+		unsigned res = tb_probe_root(bswap64(pos.get_occupancy_board(WHITE)),
+									 bswap64(pos.get_occupancy_board(BLACK)),
+									 bswap64(pos.get_piece_board(k) | pos.get_piece_board(K)),
+									 bswap64(pos.get_piece_board(q) | pos.get_piece_board(Q)),
+									 bswap64(pos.get_piece_board(r) | pos.get_piece_board(R)),
+									 bswap64(pos.get_piece_board(b) | pos.get_piece_board(B)),
+									 bswap64(pos.get_piece_board(n) | pos.get_piece_board(N)),
+									 bswap64(pos.get_piece_board(p) | pos.get_piece_board(P)),
+									 pos.get_fifty(),
+									 pos.get_castling_perms(),
+									 pos.get_enpassant_square(),
+									 pos.get_side() ^ 1,
+									 nullptr);
+		// if res didn't fail we are in a TB and can play perfect moves
+		if (res != TB_RESULT_FAILED)
 		{
-		case TB_PROMOTES_QUEEN:
-			std::cout << 'Q';
-			break;
-		case TB_PROMOTES_ROOK:
-			std::cout << 'R';
-			break;
-		case TB_PROMOTES_BISHOP:
-			std::cout << 'B';
-			break;
-		case TB_PROMOTES_KNIGHT:
-			std::cout << 'N';
-			break;
+			// TODO: Find actual mating values
+			switch (TB_GET_WDL(res))
+			{
+			case 0:
+				printf("info score cp %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", -30000, 1, 1, 1ull, 0ull, 1ull);
+				break;
+			case 1:
+			case 2:
+			case 3:
+				printf("info score cp %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", 0, 1, 1, 1ull, 0ull, 1ull);
+				break;
+			case 4:
+				printf("info score cp %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", 30000, 1, 1, 1ull, 0ull, 1ull);
+				break;
+			}
+			std::cout << square_to_coordinate[to_nnue_square[TB_GET_FROM(res)]] << square_to_coordinate[to_nnue_square[TB_GET_TO(res)]] << std::endl;
+			std::cout << "bestmove " << square_to_coordinate[to_nnue_square[TB_GET_FROM(res)]] << square_to_coordinate[to_nnue_square[TB_GET_TO(res)]];
+			switch (TB_GET_PROMOTES(res))
+			{
+			case TB_PROMOTES_QUEEN:
+				std::cout << 'Q';
+				break;
+			case TB_PROMOTES_ROOK:
+				std::cout << 'R';
+				break;
+			case TB_PROMOTES_BISHOP:
+				std::cout << 'B';
+				break;
+			case TB_PROMOTES_KNIGHT:
+				std::cout << 'N';
+				break;
+			}
+			std::cout << std::endl;
+			return;
 		}
-		std::cout << std::endl;
-		return;
 	}
-
 	auto start_time = get_time_ms();
 	int real_best = 0;
 	pos.init_search();
