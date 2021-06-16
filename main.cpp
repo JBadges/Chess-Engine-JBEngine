@@ -55,7 +55,6 @@ unsigned long long perft_verbose(JACEA::Position &pos, int depth)
 			pos.take_move();
 		}
 	}
-	std::cout << "Perft " << depth << ": " << nodes << std::endl;
 	return nodes;
 }
 
@@ -81,7 +80,12 @@ int main(void)
 	tb_init(std::filesystem::absolute("./syzygy/345").generic_string().c_str());
 
 	JACEA::Position pos;
-	std::vector<TTEntry> transposition_table(hash_table_size, {0, 0, 0, 0, 0});
+	JACEA::UCISettings uci_settings;
+	std::vector<TTEntry> transposition_table(hash_table_size);
+	clear_table(transposition_table, hash_table_size);
+
+	std::istringstream startpos_tokenizer{"startpos"};
+	parse_position(pos, startpos_tokenizer);
 
 	std::cout << "uciok" << std::endl;
 
@@ -112,7 +116,11 @@ int main(void)
 		}
 		else if (token == "go")
 		{
-			parse_go(pos, transposition_table, tokenizer);
+			parse_go(pos, transposition_table, uci_settings, tokenizer);
+		}
+		else if (token == "stop")
+		{
+			uci_settings.stop = true;
 		}
 		else if (token == "quit")
 		{
@@ -148,6 +156,24 @@ int main(void)
 						"1-0"};
 				std::cout << "TB Probe: " << wdl_to_str[wdl] << std::endl;
 			}
+		}
+		else if (token == "perft")
+		{
+			int perft_depth;
+			if (!(tokenizer >> token))
+			{
+				perft_depth = 6;
+			}
+			else
+			{
+				perft_depth = std::stoi(token);
+			}
+			auto start_time = get_time_ms();
+			unsigned long long nodes = perft_verbose(pos, perft_depth);
+			auto duration = get_time_ms() - start_time;
+			std::cout << "Nodes \t\t: " << nodes << std::endl;
+			std::cout << "Time (s) \t: " << duration / 1000.0 << std::endl;
+			std::cout << "Nodes/s \t: " << std::fixed << nodes / (duration / 1000.0) << std::endl;
 		}
 	}
 	return 0;

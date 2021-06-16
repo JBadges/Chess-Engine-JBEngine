@@ -44,12 +44,11 @@ int JACEA::parse_move(Position &pos, const char *move_cstr)
     return 0;
 }
 
-void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, std::istringstream &tokenizer)
+void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, std::istringstream &tokenizer)
 {
     int max_depth = -1;
     int increment = 0;
 
-    UCISettings uci;
     uci.stop = false;
     uci.time_to_stop = -1;
 

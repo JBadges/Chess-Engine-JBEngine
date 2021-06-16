@@ -7,6 +7,7 @@
 #include <thread>
 #include "random.h"
 #include "./syzygy/tbprobe.h"
+#include <future>
 
 using namespace JACEA;
 
@@ -17,7 +18,7 @@ static inline bool compareDescendingMoves(const ScoredMove &a, const ScoredMove 
 
 static inline void update_stop(UCISettings &uci)
 {
-	uci.stop = uci.completed_iteration && get_time_ms() > uci.time_to_stop;
+	uci.stop |= uci.completed_iteration && get_time_ms() > uci.time_to_stop;
 }
 
 static inline int quiesence(bool mainThread, JACEA::Position &pos, int alpha, int beta, UCISettings &uci)
@@ -88,7 +89,7 @@ static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int 
 		uci.largest_depth = std::max(uci.largest_depth, pos.get_ply());
 	}
 
-	if (uci.nodes & 15000) // ~ each ms
+	if (uci.nodes & 2048) // ~ each ms
 	{
 		update_stop(uci);
 	}
@@ -341,6 +342,84 @@ static inline int aspiration(bool mainThread, JACEA::Position &pos, std::vector<
 	return 0;
 }
 
+void start_workers(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth)
+{
+	int score = 0;
+	auto start_time = get_time_ms();
+	int real_best = 0;
+	pos.init_search();
+	uci.completed_iteration = false;
+	uci.table_base_hits = 0;
+	uci.nodes = 0;
+	uci.end_early = false;
+	uci.stop = false;
+
+	// Intialize workers
+	const int workers = 3;
+	JACEA::Position *threadPositions = new JACEA::Position[workers];
+	std::thread threads[workers];
+	for (int i = 0; i < workers; i++)
+	{
+		threadPositions[i] = pos;
+	}
+	for (int current_depth = 1; current_depth <= depth;)
+	{
+		pos.follow_pv_true();
+		for (int i = 0; i < workers; i++)
+		{
+			threadPositions[i].follow_pv_true();
+		}
+		uci.stop_threads = false;
+		uci.largest_depth = 0;
+		for (int i = 0; i < workers; i++)
+		{
+			threads[i] = std::thread(aspiration, false, std::ref(threadPositions[i]), std::ref(tt), std::ref(uci), current_depth + i / 2 + 1, score);
+		}
+		score = aspiration(true, pos, tt, uci, current_depth, score);
+		uci.stop_threads = true;
+		for (int i = 0; i < workers; i++)
+		{
+			threads[i].join();
+		}
+
+		if (!uci.stop)
+		{
+			real_best = pos.get_pv_best();
+		}
+		else
+		{
+			break;
+		}
+		if (score > -value_mate && score < -value_mate_lower)
+		{
+			printf("info score mate %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", -(score + value_mate) / 2 - 1, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time, uci.table_base_hits);
+			uci.end_early = true;
+		}
+		else if (score > value_mate_lower && score < value_mate)
+		{
+			printf("info score mate %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", (value_mate - score) / 2 + 1, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time, uci.table_base_hits);
+			uci.end_early = true;
+		}
+		else
+		{
+			printf("info score cp %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", score, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time, uci.table_base_hits);
+		}
+		pos.print_pv_line();
+		std::cout << std::endl;
+
+		uci.completed_iteration = true;
+		current_depth++;
+		if (uci.end_early)
+		{
+			break;
+		}
+	}
+	std::cout << "bestmove " << square_to_coordinate[get_from_square(real_best)] << square_to_coordinate[get_to_square(real_best)];
+	if (get_promoted_piece(real_best) != 0)
+		std::cout << piece_to_string[get_promoted_piece(real_best)];
+	std::cout << std::endl;
+}
+
 void JACEA::search(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth)
 {
 	if (pop_count(pos.get_occupancy_board(BOTH)) <= 5)
@@ -398,71 +477,5 @@ void JACEA::search(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &
 			return;
 		}
 	}
-	auto start_time = get_time_ms();
-	int real_best = 0;
-	pos.init_search();
-	uci.completed_iteration = false;
-	uci.table_base_hits = 0;
-	uci.nodes = 0;
-
-	const int workers = 3;
-	JACEA::Position *threadPositions = new JACEA::Position[workers];
-	std::thread threads[workers];
-	int score = 0;
-	for (int i = 0; i < workers; i++)
-	{
-		threadPositions[i] = pos;
-	}
-	for (int current_depth = 1; current_depth <= depth;)
-	{
-		pos.follow_pv_true();
-		uci.stop_threads = false;
-		uci.largest_depth = 0;
-		for (int i = 0; i < workers; i++)
-		{
-			threads[i] = std::thread(aspiration, false, std::ref(threadPositions[i]), std::ref(tt), std::ref(uci), current_depth + i / 2 + 1, score);
-		}
-		score = aspiration(true, pos, tt, uci, current_depth, score);
-		uci.stop_threads = true;
-		for (int i = 0; i < workers; i++)
-		{
-			threads[i].join();
-		}
-
-		if (!uci.stop)
-		{
-			real_best = pos.get_pv_best();
-		}
-		else
-		{
-			break;
-		}
-		if (score > -value_mate && score < -value_mate_lower)
-		{
-			printf("info score mate %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", -(score + value_mate) / 2 - 1, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time, uci.table_base_hits);
-			uci.end_early = true;
-		}
-		else if (score > value_mate_lower && score < value_mate)
-		{
-			printf("info score mate %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", (value_mate - score) / 2 + 1, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time, uci.table_base_hits);
-			uci.end_early = true;
-		}
-		else
-		{
-			printf("info score cp %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", score, current_depth, uci.largest_depth, uci.nodes, get_time_ms() - start_time, uci.table_base_hits);
-		}
-		pos.print_pv_line();
-		std::cout << std::endl;
-
-		uci.completed_iteration = true;
-		current_depth++;
-		if (uci.end_early)
-		{
-			break;
-		}
-	}
-	std::cout << "bestmove " << square_to_coordinate[get_from_square(real_best)] << square_to_coordinate[get_to_square(real_best)];
-	if (get_promoted_piece(real_best) != 0)
-		std::cout << piece_to_string[get_promoted_piece(real_best)];
-	std::cout << '\n';
+	std::thread{&start_workers, std::ref(pos), std::ref(tt), std::ref(uci), depth}.detach();
 }

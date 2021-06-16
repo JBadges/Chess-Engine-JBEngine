@@ -4,6 +4,7 @@
 #include "move.h"
 #include "position.h"
 #include <vector>
+#include <mutex>
 
 namespace JACEA
 {
@@ -14,6 +15,7 @@ namespace JACEA
         int flags;
         int value;
         Move best_move;
+        std::mutex lock;
     };
 
     const int flag_hash_exact = 0b00;
@@ -28,6 +30,9 @@ namespace JACEA
     static inline int read_hash_entry(const Position &pos, std::vector<TTEntry> &table, const int alpha, const int beta, const int depth)
     {
         TTEntry *entry = &table[pos.get_key() % hash_table_size];
+
+        // Locks until is destructed from being out of scope
+        std::lock_guard<std::mutex> lg(entry->lock);
 
         if (entry->key == pos.get_key())
         {
@@ -64,6 +69,9 @@ namespace JACEA
     static inline void record_hash(const Position &pos, std::vector<TTEntry> &table, const int depth, int value, const int flag)
     {
         TTEntry *entry = &table[pos.get_key() % hash_table_size];
+
+        // Locks until is destructed from being out of scope
+        std::lock_guard<std::mutex> lg(entry->lock);
 
         // If score is mating adjust for mate
         if (value > value_mate_lower)
