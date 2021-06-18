@@ -79,6 +79,13 @@ static inline int quiesence(bool mainThread, JACEA::Position &pos, int alpha, in
 
 static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int beta, int depth, std::vector<TTEntry> &tt, UCISettings &uci)
 {
+	bool pv_node = (beta - alpha) > 1;
+	int eval = evaluation(pos);
+	int score;
+	int flag_hash = flag_hash_alpha;
+	bool skip_quiet_moves = false;
+	int reduction;
+
 	if (uci.stop_threads)
 		return 0;
 	pos.update_current_pv_length();
@@ -89,7 +96,7 @@ static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int 
 		uci.largest_depth = std::max(uci.largest_depth, pos.get_ply());
 	}
 
-	if (uci.nodes & 2048) // ~ each ms
+	if ((uci.nodes & 2048) == 0) // ~ each ms
 	{
 		update_stop(uci);
 	}
@@ -99,73 +106,78 @@ static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int 
 		return 0;
 	}
 
-	// Draw
-	if (pos.get_ply() != 0 && pos.draw())
-	{
-		return 0;
-	}
-
-	if (pos.get_ply() >= max_game_ply)
-	{
-		return evaluation(pos);
-	}
-
 	if (depth <= 0)
 	{
 		return quiesence(mainThread, pos, alpha, beta, uci);
 	}
 
-	bool pv_node = (beta - alpha) > 1;
-	int eval = evaluation(pos);
-	int score;
-	int flag_hash = flag_hash_alpha;
-
-	// Transposition table lookup
-	if (pos.get_ply() && ((score = read_hash_entry(pos, tt, alpha, beta, depth)) != no_hash) && !pv_node && pos.get_fifty() < 90)
+	if (pos.get_ply())
 	{
-		return score;
-	}
-
-	// Tablebase lookup
-	if (pos.get_ply() && pop_count(pos.get_occupancy_board(BOTH)) <= 5)
-	{
-		if (mainThread)
-			uci.table_base_hits++;
-
-		unsigned res = tb_probe_wdl(bswap64(pos.get_occupancy_board(WHITE)),
-									bswap64(pos.get_occupancy_board(BLACK)),
-									bswap64(pos.get_piece_board(k) | pos.get_piece_board(K)),
-									bswap64(pos.get_piece_board(q) | pos.get_piece_board(Q)),
-									bswap64(pos.get_piece_board(r) | pos.get_piece_board(R)),
-									bswap64(pos.get_piece_board(b) | pos.get_piece_board(B)),
-									bswap64(pos.get_piece_board(n) | pos.get_piece_board(N)),
-									bswap64(pos.get_piece_board(p) | pos.get_piece_board(P)),
-									pos.get_fifty(),
-									pos.get_castling_perms(),
-									pos.get_enpassant_square() == no_sq ? 0 : pos.get_enpassant_square(),
-									pos.get_side() ^ 1);
-
-		if (res != TB_RESULT_FAILED)
+		// Draw - return a non-zero value to help
+		// detect drawing lines in a winning position
+		if (pos.get_ply() != 0 && pos.draw())
 		{
-			unsigned wdl = TB_GET_WDL(res);
-			switch (wdl)
+			return 1 - (uci.nodes & 2);
+		}
+
+		if (pos.get_ply() >= max_game_ply)
+		{
+			return evaluation(pos);
+		}
+
+		// Mate distance pruning
+		alpha = std::max(mated_in(pos.get_ply()), alpha);
+		beta = std::min(mate_in(pos.get_ply() + 1), beta);
+		if (alpha >= beta)
+			return alpha;
+
+		// Transposition table lookup
+		if (((score = read_hash_entry(pos, tt, alpha, beta, depth)) != no_hash) && !pv_node && pos.get_fifty() < 90)
+		{
+			return score;
+		}
+
+		// Tablebase lookup
+		if (pop_count(pos.get_occupancy_board(BOTH)) <= 5)
+		{
+			if (mainThread)
+				uci.table_base_hits++;
+
+			unsigned res = tb_probe_wdl(bswap64(pos.get_occupancy_board(WHITE)),
+										bswap64(pos.get_occupancy_board(BLACK)),
+										bswap64(pos.get_piece_board(k) | pos.get_piece_board(K)),
+										bswap64(pos.get_piece_board(q) | pos.get_piece_board(Q)),
+										bswap64(pos.get_piece_board(r) | pos.get_piece_board(R)),
+										bswap64(pos.get_piece_board(b) | pos.get_piece_board(B)),
+										bswap64(pos.get_piece_board(n) | pos.get_piece_board(N)),
+										bswap64(pos.get_piece_board(p) | pos.get_piece_board(P)),
+										pos.get_fifty(),
+										pos.get_castling_perms(),
+										pos.get_enpassant_square() == no_sq ? 0 : pos.get_enpassant_square(),
+										pos.get_side() ^ 1);
+
+			if (res != TB_RESULT_FAILED)
 			{
-				// Lost
-			case 0:
-				return mated_in(pos.get_ply());
-				break;
-				// Draw
-			case 1:
-			case 2:
-			case 3:
-				return 0;
-				break;
-				// Win
-			case 4:
-				return mate_in(pos.get_ply());
-				break;
-			default:
-				break;
+				unsigned wdl = TB_GET_WDL(res);
+				switch (wdl)
+				{
+					// Lost
+				case 0:
+					return mated_in(pos.get_ply());
+					break;
+					// Draw
+				case 1:
+				case 2:
+				case 3:
+					return 0;
+					break;
+					// Win
+				case 4:
+					return mate_in(pos.get_ply());
+					break;
+				default:
+					break;
+				}
 			}
 		}
 	}
@@ -195,12 +207,22 @@ static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int 
 		}
 	}
 
+	// Beta Pruning - If the eval is well above beta we assume
+	// that it will still hold at a higher depth
+	if (pos.get_ply() && !pv_node && !in_check && depth <= 8 && eval - 75 * depth > beta)
+		return eval;
+
+	// Alpha Pruning - If the move is so bad now, it will probably be bad
+	// even at high depths
+	if (pos.get_ply() && !pv_node && !in_check && depth <= 5 && eval + 3000 <= alpha)
+		return eval;
+
 	// Futility pruning
 	if (pos.get_ply() && !pv_node && depth < 9 && eval - (200 * depth) >= beta && eval < value_win)
 		return eval;
 
 	// Null move pruning
-	if (!pv_node && eval >= beta && !in_check)
+	if (pos.get_ply() && !pv_node && eval >= beta && !in_check && (pos.get_piece_board(BOTH) & ~(pos.get_piece_board(P) | pos.get_piece_board(p))) && !pos.is_last_move_null())
 	{
 		// Depth calc from stockfish
 		int depth_reduction = (1090 + 81 * depth) / 256 + std::min(int(eval - beta) / 205, 3);
@@ -226,45 +248,58 @@ static inline int negamax(bool mainThread, JACEA::Position &pos, int alpha, int 
 
 	std::stable_sort(ml.moves, ml.moves + ml.size, compareDescendingMoves);
 
-	int moves_searched = 0;
-
 	for (int i = 0; i < ml.size; i++)
 	{
 		if (!pos.make_move(ml.moves[i].move, MoveType::ALL))
 			continue;
 
+		bool is_quiet_move = is_quiet(ml.moves[i].move);
+
+		if (is_quiet_move && skip_quiet_moves)
+		{
+			pos.take_move();
+			continue;
+		}
+
+		if (eval > -value_mate_lower && depth <= 8 && legal_moves >= 4.0 + 4 * depth * depth / 4.5)
+		{
+			skip_quiet_moves = true;
+		}
+
 		legal_moves++;
-		// We want to run a full search
-		if (moves_searched == 0)
+
+		// Late Move Reductions
+		if (is_quiet_move && depth > 2 && legal_moves > 1)
+		{
+			reduction = 0.75 + log(depth) * log(legal_moves) / 2.25;
+			reduction += !pv_node + in_check;
+			reduction = std::min(depth - 1, std::max(reduction, 1));
+		}
+		else
+		{
+			reduction = 1;
+		}
+
+		// If we hit Late Move Reduction search with reduced depth with modified bounds
+		if (reduction != -1)
+		{
+			score = -negamax(mainThread, pos, -alpha - 1, -alpha, depth - reduction, tt, uci);
+		}
+
+		// If our late move reduction returned a value outside of our alpha bound rerun with normal depth
+		if ((reduction != -1 && score > alpha) || (reduction == 1 && !(pv_node && legal_moves == 1)))
+		{
+			score = -negamax(mainThread, pos, -alpha - 1, -alpha, depth - 1, tt, uci);
+		}
+
+		// If we are in a pv line and we played a move that beat alpha even on reduced depth,
+		// re-search the move with normal bounds and normal depth
+		if (pv_node && (legal_moves == 1 || score > alpha))
 		{
 			score = -negamax(mainThread, pos, -beta, -alpha, depth - 1, tt, uci);
 		}
-		// Late Move Reduction
-		else
-		{
-			if (depth >= 3 && moves_searched >= 1 + 2 * pv_node && !in_check && !is_capture(ml.moves[i].move) && !get_promoted_piece(ml.moves[i].move))
-			{
-				score = -negamax(mainThread, pos, -alpha - 1, -alpha, depth - 2, tt, uci);
-			}
-			else
-			{
-				score = alpha + 1; // Hack to force full depth search
-			}
-			// PVS
-			if (score > alpha)
-			{
-				score = -negamax(mainThread, pos, -alpha - 1, -alpha, depth - 1, tt, uci);
-
-				if (score > alpha && score < beta)
-				{
-					score = -negamax(mainThread, pos, -beta, -alpha, depth - 1, tt, uci);
-				}
-			}
-		}
 
 		pos.take_move();
-
-		moves_searched++;
 
 		if (uci.stop_threads)
 			return 0;
@@ -342,7 +377,7 @@ static inline int aspiration(bool mainThread, JACEA::Position &pos, std::vector<
 	return 0;
 }
 
-void start_workers(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth)
+void start_workers(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth, int workers)
 {
 	int score = 0;
 	auto start_time = get_time_ms();
@@ -352,12 +387,10 @@ void start_workers(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &
 	uci.table_base_hits = 0;
 	uci.nodes = 0;
 	uci.end_early = false;
-	uci.stop = false;
 
 	// Intialize workers
-	const int workers = 3;
-	JACEA::Position *threadPositions = new JACEA::Position[workers];
-	std::thread threads[workers];
+	auto threadPositions = std::vector<JACEA::Position>(workers);
+	auto threads = std::vector<std::thread>(workers);
 	for (int i = 0; i < workers; i++)
 	{
 		threadPositions[i] = pos;
@@ -379,7 +412,8 @@ void start_workers(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &
 		uci.stop_threads = true;
 		for (int i = 0; i < workers; i++)
 		{
-			threads[i].join();
+			if (threads[i].joinable())
+				threads[i].join();
 		}
 
 		if (!uci.stop)
@@ -438,14 +472,13 @@ void JACEA::search(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &
 									 pos.get_enpassant_square(),
 									 pos.get_side() ^ 1,
 									 nullptr);
-		// if res didn't fail we are in a TB and can play perfect moves
+		// if res didn't fail we are in a TB and can play perfect moves instantly
 		if (res != TB_RESULT_FAILED)
 		{
-			// TODO: Find actual mating values
 			switch (TB_GET_WDL(res))
 			{
 			case 0:
-				printf("info score cp %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", -30000, 1, 1, 1ull, 0ull, 1ull);
+				printf("info score mate %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", -TB_GET_DTZ(res), 1, 1, 1ull, 0ull, 1ull);
 				break;
 			case 1:
 			case 2:
@@ -453,7 +486,7 @@ void JACEA::search(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &
 				printf("info score cp %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", 0, 1, 1, 1ull, 0ull, 1ull);
 				break;
 			case 4:
-				printf("info score cp %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", 30000, 1, 1, 1ull, 0ull, 1ull);
+				printf("info score mate %d depth %d seldepth %d nodes %llu time %llu tbhits %llu pv ", TB_GET_DTZ(res), 1, 1, 1ull, 0ull, 1ull);
 				break;
 			}
 			std::cout << square_to_coordinate[to_nnue_square[TB_GET_FROM(res)]] << square_to_coordinate[to_nnue_square[TB_GET_TO(res)]] << std::endl;
@@ -477,5 +510,6 @@ void JACEA::search(JACEA::Position &pos, std::vector<TTEntry> &tt, UCISettings &
 			return;
 		}
 	}
-	std::thread{&start_workers, std::ref(pos), std::ref(tt), std::ref(uci), depth}.detach();
+	// If we did not hit on TB, start workers
+	start_workers(pos, tt, uci, depth, 4);
 }

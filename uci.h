@@ -24,5 +24,5 @@ namespace JACEA
 
     Move parse_move(Position &pos, const char *move_cstr);
 
-    void parse_go(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, std::istringstream &tokenizer);
+    void parse_go(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, std::string line);
 }

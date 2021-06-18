@@ -144,6 +144,10 @@ namespace JACEA
         inline Move get_first_killer_move() const { return killer_moves[0][ply]; }
         inline Move get_second_killer_move() const { return killer_moves[1][ply]; }
         inline Move get_history_move(const Piece piece, const Square square) const { return history_moves[piece][square]; }
+        inline bool is_last_move_null() const
+        {
+            return (history_size == 0) ? (false) : (history[history_size - 1].move == 0);
+        }
         inline bool is_square_attacked(const Color attacker, const Square square) const
         {
             assert(attacker == WHITE || attacker == BLACK);
@@ -257,6 +261,7 @@ namespace JACEA
         inline Move get_pv_best() { return pv_table[0][0]; }
         inline Move get_pv_ply() { return pv_table[0][ply]; }
         inline bool get_should_score() { return score_pv; }
+        inline int get_history_size() { return history_size; }
         inline void print_pv_line()
         {
             for (int i = 0; i < pv_length[0]; i++)

@@ -81,6 +81,7 @@ int main(void)
 
 	JACEA::Position pos;
 	JACEA::UCISettings uci_settings;
+	std::thread search_thread;
 	std::vector<TTEntry> transposition_table(hash_table_size);
 	clear_table(transposition_table, hash_table_size);
 
@@ -96,6 +97,14 @@ int main(void)
 		std::istringstream tokenizer{line};
 		tokenizer >> token;
 
+		if (token == "stop")
+		{
+			uci_settings.stop = true;
+		}
+		else if (search_thread.joinable())
+		{
+			search_thread.join();
+		}
 		if (token == "ucinewgame")
 		{
 			clear_table(transposition_table, hash_table_size);
@@ -116,11 +125,8 @@ int main(void)
 		}
 		else if (token == "go")
 		{
-			parse_go(pos, transposition_table, uci_settings, tokenizer);
-		}
-		else if (token == "stop")
-		{
-			uci_settings.stop = true;
+			// Have to make a copy of the line since line will be overwritten on next loop as this thread does not halt the execution
+			search_thread = std::thread{&parse_go, std::ref(pos), std::ref(transposition_table), std::ref(uci_settings), line};
 		}
 		else if (token == "quit")
 		{

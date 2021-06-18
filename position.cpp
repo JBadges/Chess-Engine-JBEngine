@@ -508,6 +508,7 @@ void JACEA::Position::make_null_move()
 	side ^= 1;
 	zobrist_key ^= side_key;
 }
+
 void JACEA::Position::take_null_move()
 {
 	history_size--;

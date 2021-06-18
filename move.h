@@ -62,4 +62,9 @@ namespace JACEA
         return move & flag_castle;
     }
 
+    inline int is_quiet(const Move move)
+    {
+        return !(is_capture(move) || is_enpassant(move) || is_castle(move));
+    }
+
 }
