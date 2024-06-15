@@ -5,8 +5,35 @@
 #include <sstream>
 #include <iostream>
 #include <string>
+#include <filesystem>
+#include "nnue.h"
+#include "tbprobe.h"
 
 using namespace JACEA;
+
+void JACEA::parse_setoption(TranspositionTable &tt, std::istringstream &tokenizer) {
+    std::string token;
+    tokenizer >> token;
+    if (token == "Hash")
+    {
+        size_t hash_size_mb;
+        tokenizer >> hash_size_mb;
+        tt.resize_table_mb(hash_size_mb);
+        tt.clear_table();
+    } 
+    else if (token == "SyzygyPath")
+    {
+        std::string syzygy_path;
+        tokenizer >> syzygy_path;
+        tb_init(std::filesystem::absolute(syzygy_path).generic_string().c_str());
+    } 
+    else if (token == "NNUEPath")
+    {
+        std::string nnue_file_path;
+        tokenizer >> nnue_file_path;
+        nnue_init(std::filesystem::absolute(nnue_file_path).generic_string().c_str());
+    }
+}
 
 int JACEA::parse_move(Position &pos, const char *move_cstr)
 {
@@ -44,16 +71,17 @@ int JACEA::parse_move(Position &pos, const char *move_cstr)
     return 0;
 }
 
-void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, std::string line)
+void JACEA::parse_go(Position &pos, TranspositionTable &tt, UCISettings &uci, std::istringstream& tokenizer)
 {
-    std::istringstream tokenizer{line};
     int max_depth = -1;
     int increment = 0;
 
     uci.stop = false;
     uci.time_to_stop = -1;
+    int total_time = -1;
 
     std::string token;
+    
     while (tokenizer >> token)
     {
         if (token == "wtime" && pos.get_side() == WHITE)
@@ -78,7 +106,8 @@ void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, 
         }
         else if (token == "movetime")
         {
-            // uci.moveTime = std::stoi(split[i + 1]);
+            tokenizer >> token;
+            total_time = std::stoi(token);
         }
         else if (token == "movestogo")
         {
@@ -100,7 +129,7 @@ void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, 
     // If time is -1 we did not recieve a time paramter so lets search for 10s
     if (uci.time_to_stop < 0)
     {
-        uci.time_to_stop = 10 * 1000.0;
+        uci.time_to_stop = 10 * 1000;
     }
     else
     {
@@ -114,8 +143,12 @@ void JACEA::parse_go(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, 
         }
         else
         {
-            uci.time_to_stop = std::min(10 * 1000.0, uci.time_to_stop / 20.0);
+            uci.time_to_stop = std::min(10 * 1000ll, uci.time_to_stop / 20);
         }
+    }
+    if (total_time > 0)
+    {
+        uci.time_to_stop = total_time;
     }
     std::cout << "Searching for: " << uci.time_to_stop << "ms"
               << " to a max depth of " << max_depth << std::endl;

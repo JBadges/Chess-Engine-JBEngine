@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <string>
 #include <intrin.h>
+#include <bit>
 
 namespace JACEA
 {
@@ -140,7 +141,7 @@ namespace JACEA
 
     inline int pop_count(const Bitboard &bb)
     {
-        return __builtin_popcountll(bb);
+        return std::popcount(bb);
     }
 
     inline Bitboard pop_bit(Bitboard &bb, const Square square)

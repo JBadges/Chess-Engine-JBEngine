@@ -32,18 +32,40 @@ Intrinsic bsf
 #define bsf(b) __builtin_ctzll(b)
 #define bsr(b) (63 - __builtin_clzll(b))
 #elif defined(_WIN32)
-#include <intrin.h>
 INLINE int bsf(uint64_t b)
 {
-  unsigned long x;
-  _BitScanForward64(&x, b);
-  return (int)x;
+#if defined(_M_X64) || defined(__x86_64__)
+    unsigned long x;
+    _BitScanForward64(&x, b);
+    return (int)x;
+#else
+    // Fallback implementation for non-x64 targets
+    if (b == 0) return -1;
+    int pos = 0;
+    while ((b & 1) == 0) {
+        b >>= 1;
+        pos++;
+    }
+    return pos;
+#endif
 }
+
 INLINE int bsr(uint64_t b)
 {
-  unsigned long x;
-  _BitScanReverse64(&x, b);
-  return (int)x;
+#if defined(_M_X64) || defined(__x86_64__)
+    unsigned long x;
+    _BitScanReverse64(&x, b);
+    return (int)x;
+#else
+    // Fallback implementation for non-x64 targets
+    if (b == 0) return -1;
+    int pos = 63;
+    while ((b & (1ULL << 63)) == 0) {
+        b <<= 1;
+        pos--;
+    }
+    return pos;
+#endif
 }
 #endif
 

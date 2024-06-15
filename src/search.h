@@ -15,5 +15,5 @@ namespace JACEA
         return -value_mate + ply;
     }
 
-    void search(Position &pos, std::vector<TTEntry> &tt, UCISettings &uci, int depth);
+    void search(Position &pos, TranspositionTable &tt, UCISettings &uci, int depth);
 }

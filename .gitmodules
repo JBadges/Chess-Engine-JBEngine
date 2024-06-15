@@ -1,3 +1,0 @@
-[submodule "libs/libtorch"]
-	path = libs/libtorch
-	url = https://github.com/pytorch/pytorch.git

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "position.h"
-#include "nnue/nnue.h"
+#include "nnue.h"
 
 namespace JACEA
 {
